@@ -1,0 +1,31 @@
+module basic-system {
+  yang-version 1.1;
+  namespace "urn:example:basic-system";
+  prefix bs;
+
+  container system {
+    description "Basic system settings.";
+
+    leaf hostname {
+      type string;
+      mandatory true;
+      description "Device host name.";
+    }
+
+    list interface {
+      key name;
+      description "Network interfaces.";
+
+      leaf name {
+        type string;
+        description "Interface name.";
+      }
+
+      leaf enabled {
+        type boolean;
+        default true;
+        description "Administrative state.";
+      }
+    }
+  }
+}
