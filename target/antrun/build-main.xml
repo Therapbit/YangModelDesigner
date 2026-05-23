@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <mkdir dir="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux" />
+    <copy file="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0.jar" todir="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux" />
+    <copy file="E:\programm\YangModelDesigner/YangDesignerInstruction.md" todir="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux" />
+    <copy file="E:\programm\YangModelDesigner/src/linux/run.sh" tofile="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux/run.sh" />
+    <chmod file="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux/run.sh" perm="755" />
+    <zip destfile="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux.zip">
+      <zipfileset prefix="YangModelDesigner-1.0-linux" filemode="755" dir="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux">
+        <include name="run.sh" />
+      </zipfileset>
+      <zipfileset prefix="YangModelDesigner-1.0-linux" dir="E:\programm\YangModelDesigner\target/YangModelDesigner-1.0-linux">
+        <exclude name="run.sh" />
+      </zipfileset>
+    </zip>
+  </target>
+</project>

@@ -1,0 +1,50 @@
+.yang-code-area {
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 13px;
+    -fx-background-color: #fbfdff;
+}
+
+.yang-code-area .text {
+    -fx-fill: #0f172a;
+}
+
+.lineno {
+    -fx-background-color: #eef2f7;
+    -fx-text-fill: #64748b;
+    -fx-padding: 0 8 0 8;
+}
+
+.yang-code-area .text.keyword {
+    -fx-fill: #0b63ce;
+    -fx-font-weight: bold;
+}
+
+.yang-code-area .text.type {
+    -fx-fill: #b423e8;
+    -fx-font-weight: bold;
+}
+
+.yang-code-area .text.string {
+    -fx-fill: #0f8a43;
+}
+
+.yang-code-area .text.comment {
+    -fx-fill: #8a94a6;
+    -fx-font-style: italic;
+}
+
+.yang-code-area .text.brace {
+    -fx-fill: #f97316;
+    -fx-font-weight: bold;
+}
+
+.yang-code-area .text.matching-brace {
+    -rtfx-background-color: #fde68a;
+    -fx-fill: #7c2d12;
+    -fx-underline: true;
+}
+
+.yang-code-area .text.semicolon {
+    -fx-fill: #e11d48;
+    -fx-font-weight: bold;
+}

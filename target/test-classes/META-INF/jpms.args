@@ -1,0 +1,4 @@
+--patch-module
+com.yangdesigner.yangmodeldesigner=_
+--add-reads
+com.yangdesigner.yangmodeldesigner=ALL-UNNAMED

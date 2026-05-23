@@ -1,0 +1,3 @@
+com\yangdesigner\yangmodeldesigner\validation\YangValidatorTest.class
+com\yangdesigner\yangmodeldesigner\parser\YangParserTest.class
+com\yangdesigner\yangmodeldesigner\service\YangWriterTest.class
