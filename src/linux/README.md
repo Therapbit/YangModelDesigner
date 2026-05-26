@@ -6,4 +6,4 @@ This directory contains files that are committed to git and copied into the Linu
 ./mvnw -Plinux-dist package
 ```
 
-`run.sh` is a template. Maven replaces `@APP_JAR@`, `@APP_MODULE@`, and `@APP_MAIN_CLASS@` while assembling `target/YangModelDesigner-1.0-linux.zip`.
+`run.sh` is copied into the distribution as-is. At startup it searches for `YangModelDesigner-*.jar` next to the script and uses the bundled `lib` directory as the Java module path.

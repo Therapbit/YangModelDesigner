@@ -1,6 +1,7 @@
 module com.yangdesigner.yangmodeldesigner {
     requires javafx.controls;
     requires org.fxmisc.richtext;
+    requires org.fxmisc.flowless;
 
     exports com.yangdesigner.yangmodeldesigner;
     exports com.yangdesigner.yangmodeldesigner.app;

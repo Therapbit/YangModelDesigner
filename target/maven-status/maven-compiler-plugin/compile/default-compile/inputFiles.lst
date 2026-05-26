@@ -8,7 +8,9 @@ E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\p
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\parser\YangParseResult.java
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\service\YangDocumentService.java
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\service\YangWriter.java
+E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\service\YangXmlSampleGenerator.java
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\ui\MainView.java
+E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\validation\PyangValidator.java
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\validation\ValidationIssue.java
 E:\programm\YangModelDesigner\src\main\java\com\yangdesigner\yangmodeldesigner\validation\YangValidator.java
 E:\programm\YangModelDesigner\src\main\java\module-info.java

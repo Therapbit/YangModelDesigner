@@ -6,7 +6,7 @@
 
     <groupId>com.yangdesigner</groupId>
     <artifactId>YangModelDesigner</artifactId>
-    <version>1.0</version>
+    <version>2.0</version>
     <name>YangModelDesigner</name>
 
     <properties>
@@ -17,6 +17,7 @@
         <app.mainClass>com.yangdesigner.yangmodeldesigner.app.YangModelDesignerApplication</app.mainClass>
         <junit.version>5.12.1</junit.version>
         <richtextfx.version>0.11.7</richtextfx.version>
+        <flowless.version>0.7.4</flowless.version>
     </properties>
 
     <dependencies>
@@ -29,6 +30,11 @@
             <groupId>org.fxmisc.richtext</groupId>
             <artifactId>richtextfx</artifactId>
             <version>${richtextfx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.fxmisc.flowless</groupId>
+            <artifactId>flowless</artifactId>
+            <version>${flowless.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -175,17 +181,10 @@
                                               todir="${linux.dist.dir}"/>
                                         <copy file="${project.basedir}/YangDesignerInstruction.md"
                                               todir="${linux.dist.dir}"/>
+                                        <copy file="${project.basedir}/requirements.txt"
+                                              todir="${linux.dist.dir}"/>
                                         <copy file="${project.basedir}/src/linux/run.sh"
-                                              tofile="${linux.dist.dir}/run.sh">
-                                            <filterset>
-                                                <filter token="APP_JAR"
-                                                        value="${project.build.finalName}.jar"/>
-                                                <filter token="APP_MODULE"
-                                                        value="${app.module}"/>
-                                                <filter token="APP_MAIN_CLASS"
-                                                        value="${app.mainClass}"/>
-                                            </filterset>
-                                        </copy>
+                                              tofile="${linux.dist.dir}/run.sh"/>
                                         <chmod file="${linux.dist.dir}/run.sh" perm="755"/>
                                         <zip destfile="${project.build.directory}/${linux.dist.name}.zip">
                                             <zipfileset dir="${linux.dist.dir}"

@@ -1,5 +1,5 @@
 .yang-code-area {
-    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
     -fx-font-size: 13px;
     -fx-background-color: #fbfdff;
 }

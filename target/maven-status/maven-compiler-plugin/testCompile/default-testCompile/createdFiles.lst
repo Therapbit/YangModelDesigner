@@ -1,3 +1,5 @@
+com\yangdesigner\yangmodeldesigner\validation\PyangValidatorTest.class
+com\yangdesigner\yangmodeldesigner\service\YangXmlSampleGeneratorTest.class
 com\yangdesigner\yangmodeldesigner\validation\YangValidatorTest.class
 com\yangdesigner\yangmodeldesigner\parser\YangParserTest.class
 com\yangdesigner\yangmodeldesigner\service\YangWriterTest.class

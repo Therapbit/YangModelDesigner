@@ -5,14 +5,16 @@ import com.yangdesigner.yangmodeldesigner.model.YangNode;
 import com.yangdesigner.yangmodeldesigner.model.YangNodeType;
 import com.yangdesigner.yangmodeldesigner.parser.YangParseResult;
 import com.yangdesigner.yangmodeldesigner.service.YangDocumentService;
+import com.yangdesigner.yangmodeldesigner.service.YangXmlSampleGenerator;
+import com.yangdesigner.yangmodeldesigner.validation.PyangValidator;
 import com.yangdesigner.yangmodeldesigner.validation.ValidationIssue;
-import com.yangdesigner.yangmodeldesigner.validation.YangValidator;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.IndexRange;
@@ -22,11 +24,17 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontPosture;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -36,6 +44,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -48,6 +57,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,6 +68,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -65,6 +76,9 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 public final class MainView {
     private static final String INDENT = "  ";
+    private static final int DEFAULT_EDITOR_FONT_SIZE = 13;
+    private static final int MIN_EDITOR_FONT_SIZE = 9;
+    private static final int MAX_EDITOR_FONT_SIZE = 32;
     private static final String[] YANG_KEYWORDS = {
             "module", "submodule", "yang-version", "namespace", "prefix",
             "import", "include", "revision", "extension", "feature", "identity",
@@ -94,30 +108,47 @@ public final class MainView {
 
     private final Stage stage;
     private final YangDocumentService documentService = new YangDocumentService();
-    private final YangValidator validator = new YangValidator();
+    private final YangXmlSampleGenerator xmlSampleGenerator = new YangXmlSampleGenerator();
+    private final PyangValidator validator = new PyangValidator();
     private final BorderPane root = new BorderPane();
     private final TreeView<YangNode> nodeTree = new TreeView<>();
+    private final BorderPane editorPane = new BorderPane();
+    private final TabPane fileTabs = new TabPane();
     private final CodeArea editor = new CodeArea();
+    private final HBox searchBar = new HBox(8);
+    private final TextField searchText = new TextField();
+    private final CheckBox searchCaseSensitive = new CheckBox("Aa");
+    private final Label searchStatus = new Label("");
     private final TextField nodeName = new TextField();
     private final Label nodeType = new Label("-");
     private final Label nodePath = new Label("-");
     private final ComboBox<String> nodeDataType = new ComboBox<>();
     private final TextArea nodeDescription = new TextArea();
     private final TextArea nodeConstraints = new TextArea();
+    private final CheckBox nodeConfig = new CheckBox("config");
+    private final CheckBox nodeMandatory = new CheckBox("mandatory");
     private final ComboBox<YangNodeType> childType = new ComboBox<>();
     private final TextField newNodeName = new TextField();
     private final ComboBox<String> newNodeDataType = new ComboBox<>();
     private final TextArea newNodeDescription = new TextArea();
     private final TextArea newNodeConstraints = new TextArea();
+    private final CheckBox newNodeConfig = new CheckBox("config");
+    private final CheckBox newNodeMandatory = new CheckBox("mandatory");
     private final ListView<UiMessage> messages = new ListView<>();
     private final PauseTransition parseDelay = new PauseTransition(Duration.millis(650));
+    private final PauseTransition autoSaveDelay = new PauseTransition(Duration.seconds(2));
     private URL editorCss;
+    private final List<EditorSession> sessions = new ArrayList<>();
     private Path currentFile;
+    private EditorSession currentSession;
     private YangDocument currentDocument;
     private YangNode selectedNode;
+    private int untitledCounter = 1;
+    private boolean switchingSessions;
     private boolean restoringTree;
     private boolean dirty;
     private boolean updatingEditor;
+    private int editorFontSize = DEFAULT_EDITOR_FONT_SIZE;
 
     public MainView(Stage stage) {
         this.stage = stage;
@@ -145,6 +176,10 @@ public final class MainView {
             editor.getStylesheets().add(editorCss.toExternalForm());
             root.getStylesheets().add(editorCss.toExternalForm());
         }
+        configureSearchBar();
+        configureFileTabs();
+        editorPane.setTop(fileTabs);
+        editorPane.setCenter(new VirtualizedScrollPane<>(editor));
 
         nodeTree.setShowRoot(true);
         nodeTree.setMinWidth(240);
@@ -162,7 +197,7 @@ public final class MainView {
             }
         });
 
-        SplitPane workArea = new SplitPane(nodeTree, editor, propertiesPane());
+        SplitPane workArea = new SplitPane(nodeTree, editorPane, propertiesPane());
         workArea.setDividerPositions(0.24, 0.70);
         root.setCenter(workArea);
 
@@ -177,11 +212,23 @@ public final class MainView {
         MenuItem save = item("Сохранить", "Shortcut+S", this::saveDocument);
         MenuItem saveAs = item("Сохранить как...", "Shortcut+Shift+S", this::saveDocumentAs);
         MenuItem export = item("Экспортировать...", "Shortcut+E", this::exportDocument);
+        MenuItem exportXml = item("Экспортировать XML...", "Shortcut+Shift+E", this::exportXmlSample);
+        MenuItem find = item("Найти...", "Shortcut+F", this::showFindDialog);
+        MenuItem replace = item("Заменить...", "Shortcut+H", this::showReplaceDialog);
+        MenuItem zoomIn = item("Увеличить масштаб", "Shortcut+PLUS", this::zoomEditorIn);
+        MenuItem zoomOut = item("Уменьшить масштаб", "Shortcut+MINUS", this::zoomEditorOut);
+        MenuItem resetZoom = item("Сбросить масштаб", "Shortcut+0", this::resetEditorZoom);
         MenuItem validate = item("Проверить", "Shortcut+R", this::validateDocument);
         MenuItem instruction = item("Инструкция", "F1", this::showInstruction);
 
         Menu file = new Menu("Файл");
-        file.getItems().addAll(newFile, open, reload, new SeparatorMenuItem(), save, saveAs, export);
+        file.getItems().addAll(newFile, open, reload, new SeparatorMenuItem(), save, saveAs, export, exportXml);
+
+        Menu edit = new Menu("Правка");
+        edit.getItems().addAll(find, replace);
+
+        Menu view = new Menu("Вид");
+        view.getItems().addAll(zoomIn, zoomOut, resetZoom);
 
         Menu tools = new Menu("Инструменты");
         tools.getItems().add(validate);
@@ -189,7 +236,7 @@ public final class MainView {
         Menu help = new Menu("Помощь");
         help.getItems().add(instruction);
 
-        return new MenuBar(file, tools, help);
+        return new MenuBar(file, edit, view, tools, help);
     }
 
     private MenuItem item(String text, String shortcut, Runnable action) {
@@ -197,6 +244,123 @@ public final class MainView {
         item.setAccelerator(KeyCombination.keyCombination(shortcut));
         item.setOnAction(event -> action.run());
         return item;
+    }
+
+    private void configureSearchBar() {
+        searchText.setPromptText("Найти");
+        searchText.setMinWidth(260);
+        searchText.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(searchText, Priority.ALWAYS);
+
+        Button previous = new Button("Назад");
+        Button next = new Button("Далее");
+        Button close = new Button("Закрыть");
+        previous.setOnAction(event -> findPreviousFromSearchBar());
+        next.setOnAction(event -> findNextFromSearchBar());
+        close.setOnAction(event -> hideSearchBar());
+        searchText.setOnAction(event -> findNextFromSearchBar());
+
+        searchBar.getChildren().setAll(
+                new Label("Найти"),
+                searchText,
+                searchCaseSensitive,
+                previous,
+                next,
+                searchStatus,
+                close
+        );
+        searchBar.setPadding(new Insets(6, 8, 6, 8));
+        searchBar.setStyle("-fx-background-color: #eef2f7; -fx-border-color: #cbd5e1; -fx-border-width: 1 0 0 0;");
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+        editorPane.setBottom(searchBar);
+    }
+
+    private void configureFileTabs() {
+        fileTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+        fileTabs.setMinHeight(30);
+        fileTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
+            if (switchingSessions || newTab == null) {
+                return;
+            }
+            switchToSession(sessionFor(newTab));
+        });
+    }
+
+    private void addSession(EditorSession session) {
+        Tab tab = new Tab(session.displayName());
+        tab.setUserData(session);
+        session.tab = tab;
+        sessions.add(session);
+        tab.setOnCloseRequest(event -> {
+            if (sessions.size() == 1) {
+                event.consume();
+            } else if (session == currentSession) {
+                syncCurrentSession();
+            }
+        });
+        tab.setOnClosed(event -> sessions.remove(session));
+        fileTabs.getTabs().add(tab);
+        selectSession(session);
+    }
+
+    private void selectSession(EditorSession session) {
+        switchingSessions = true;
+        fileTabs.getSelectionModel().select(session.tab);
+        switchingSessions = false;
+        switchToSession(session);
+    }
+
+    private void switchToSession(EditorSession session) {
+        if (session == null || session == currentSession) {
+            return;
+        }
+        syncCurrentSession();
+        currentSession = session;
+        currentFile = session.file;
+        dirty = session.dirty;
+        updatingEditor = true;
+        editor.replaceText(session.text);
+        updatingEditor = false;
+        TreeState treeState = session.treeState == null ? TreeState.empty() : session.treeState;
+        YangParseResult result = documentService.parse(editor.getText(), currentFile);
+        setDocument(result.document(), treeState);
+        messages.getItems().setAll(result.errors().stream()
+                .map(error -> new UiMessage(error, "", 0))
+                .toList());
+        highlightEditor();
+        updateTitle();
+    }
+
+    private void syncCurrentSession() {
+        if (currentSession == null) {
+            return;
+        }
+        currentSession.file = currentFile;
+        currentSession.text = editor.getText();
+        currentSession.dirty = dirty;
+        currentSession.treeState = captureTreeState();
+        updateTabTitle(currentSession);
+    }
+
+    private EditorSession sessionFor(Tab tab) {
+        return (EditorSession) tab.getUserData();
+    }
+
+    private EditorSession findSession(Path file) {
+        Path normalized = file.toAbsolutePath().normalize();
+        return sessions.stream()
+                .filter(session -> session.file != null)
+                .filter(session -> session.file.toAbsolutePath().normalize().equals(normalized))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void updateTabTitle(EditorSession session) {
+        if (session == null || session.tab == null) {
+            return;
+        }
+        session.tab.setText((session.dirty ? "* " : "") + session.displayName());
     }
 
     private TabPane propertiesPane() {
@@ -227,6 +391,9 @@ public final class MainView {
         nodeDescription.setWrapText(true);
         nodeDescription.setPrefRowCount(5);
 
+        configureBooleanConstraintCheck(nodeConfig);
+        configureBooleanConstraintCheck(nodeMandatory);
+
         nodeConstraints.setWrapText(true);
         nodeConstraints.setPrefRowCount(8);
 
@@ -244,6 +411,7 @@ public final class MainView {
                 section("Описание"),
                 nodeDescription,
                 section("Ограничения"),
+                booleanConstraintsPane(nodeConfig, nodeMandatory),
                 nodeConstraints,
                 apply,
                 delete);
@@ -268,9 +436,14 @@ public final class MainView {
         newNodeDescription.setPrefRowCount(5);
         newNodeDescription.setPromptText("Описание нового узла");
 
+        configureBooleanConstraintCheck(newNodeConfig);
+        configureBooleanConstraintCheck(newNodeMandatory);
+        resetBooleanConstraintCheck(newNodeConfig);
+        resetBooleanConstraintCheck(newNodeMandatory);
+
         newNodeConstraints.setWrapText(true);
         newNodeConstraints.setPrefRowCount(8);
-        newNodeConstraints.setPromptText("config: true\nmandatory: false");
+        newNodeConstraints.setPromptText("when: ../enabled\nmust: ../name");
 
         Button addChild = new Button("Добавить к выбранному узлу");
         addChild.setMaxWidth(Double.MAX_VALUE);
@@ -288,11 +461,18 @@ public final class MainView {
                 section("Описание нового узла"),
                 newNodeDescription,
                 section("Ограничения нового узла"),
+                booleanConstraintsPane(newNodeConfig, newNodeMandatory),
                 newNodeConstraints,
                 addChild);
         pane.setPadding(new Insets(12));
         pane.setMinWidth(340);
         VBox.setVgrow(newNodeConstraints, Priority.ALWAYS);
+        return pane;
+    }
+
+    private HBox booleanConstraintsPane(CheckBox config, CheckBox mandatory) {
+        HBox pane = new HBox(16, config, mandatory);
+        pane.setPadding(new Insets(0, 0, 2, 0));
         return pane;
     }
 
@@ -304,15 +484,21 @@ public final class MainView {
 
     private void configureActions() {
         parseDelay.setOnFinished(event -> parseAndRefresh());
+        autoSaveDelay.setOnFinished(event -> autoSaveDocument());
         editor.addEventFilter(KeyEvent.KEY_PRESSED, this::handleEditorKeyPressed);
         editor.textProperty().addListener((observable, oldValue, newValue) -> {
             if (updatingEditor) {
                 return;
             }
             dirty = true;
+            if (currentSession != null) {
+                currentSession.text = newValue;
+                currentSession.dirty = true;
+            }
             highlightEditor();
             updateTitle();
             parseDelay.playFromStart();
+            scheduleAutoSave();
         });
         editor.caretPositionProperty().addListener((observable, oldValue, newValue) -> highlightEditor());
         nodeTree.getSelectionModel().selectedItemProperty().addListener((observable, oldItem, newItem) -> {
@@ -328,12 +514,24 @@ public final class MainView {
                 UiMessage message = messages.getSelectionModel().getSelectedItem();
                 if (message != null && !message.path().isBlank()) {
                     selectNodeByPath(message.path());
+                } else if (message != null && message.line() > 0) {
+                    navigateToLine(message.line());
                 }
             }
         });
     }
 
     private void handleEditorKeyPressed(KeyEvent event) {
+        if (event.isShortcutDown() && event.getCode() == KeyCode.EQUALS) {
+            event.consume();
+            zoomEditorIn();
+            return;
+        }
+        if (event.getCode() == KeyCode.ESCAPE && searchBar.isVisible()) {
+            event.consume();
+            hideSearchBar();
+            return;
+        }
         if (event.getCode() == KeyCode.TAB) {
             event.consume();
             if (event.isShiftDown()) {
@@ -400,13 +598,178 @@ public final class MainView {
         editor.replaceSelection(lineSeparator + nextIndent);
     }
 
+    private void zoomEditorIn() {
+        setEditorFontSize(editorFontSize + 1);
+    }
+
+    private void zoomEditorOut() {
+        setEditorFontSize(editorFontSize - 1);
+    }
+
+    private void resetEditorZoom() {
+        setEditorFontSize(DEFAULT_EDITOR_FONT_SIZE);
+    }
+
+    private void setEditorFontSize(int size) {
+        editorFontSize = Math.max(MIN_EDITOR_FONT_SIZE, Math.min(MAX_EDITOR_FONT_SIZE, size));
+        editor.setStyle("-fx-font-size: " + editorFontSize + "px;");
+    }
+
+    private void showFindDialog() {
+        String selectedText = editor.getSelectedText();
+        if (selectedText != null && !selectedText.isBlank() && !selectedText.contains("\n") && !selectedText.contains("\r")) {
+            searchText.setText(selectedText);
+        }
+        searchStatus.setText("");
+        searchBar.setVisible(true);
+        searchBar.setManaged(true);
+        searchText.requestFocus();
+        searchText.selectAll();
+    }
+
+    private void showReplaceDialog() {
+        showFindReplaceDialog(true);
+    }
+
+    private void hideSearchBar() {
+        searchBar.setVisible(false);
+        searchBar.setManaged(false);
+        editor.requestFocus();
+    }
+
+    private void findNextFromSearchBar() {
+        boolean found = findNext(searchText.getText(), searchCaseSensitive.isSelected());
+        searchStatus.setText(found ? "" : "Не найдено");
+    }
+
+    private void findPreviousFromSearchBar() {
+        boolean found = findPrevious(searchText.getText(), searchCaseSensitive.isSelected());
+        searchStatus.setText(found ? "" : "Не найдено");
+    }
+
+    private void showFindReplaceDialog(boolean replaceMode) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle(replaceMode ? "Заменить" : "Найти");
+        dialog.setHeaderText(replaceMode ? "Замена в YANG-тексте" : "Поиск в YANG-тексте");
+        dialog.initOwner(stage);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        TextField findText = new TextField();
+        findText.setPromptText("Найти");
+        TextField replaceText = new TextField();
+        replaceText.setPromptText("Заменить на");
+        CheckBox caseSensitive = new CheckBox("Учитывать регистр");
+        Button findNext = new Button("Найти далее");
+        Button replace = new Button("Заменить");
+        Button replaceAll = new Button("Заменить все");
+
+        GridPane fields = new GridPane();
+        fields.setHgap(8);
+        fields.setVgap(8);
+        fields.addRow(0, new Label("Найти"), findText);
+        if (replaceMode) {
+            fields.addRow(1, new Label("Заменить"), replaceText);
+        }
+        GridPane.setHgrow(findText, Priority.ALWAYS);
+        GridPane.setHgrow(replaceText, Priority.ALWAYS);
+
+        HBox actions = replaceMode
+                ? new HBox(8, findNext, replace, replaceAll)
+                : new HBox(8, findNext);
+        VBox content = new VBox(10, fields, caseSensitive, actions);
+        content.setPadding(new Insets(10));
+        content.setMinWidth(480);
+        dialog.getDialogPane().setContent(content);
+
+        findNext.setOnAction(event -> findNext(findText.getText(), caseSensitive.isSelected()));
+        replace.setOnAction(event -> replaceCurrent(findText.getText(), replaceText.getText(), caseSensitive.isSelected()));
+        replaceAll.setOnAction(event -> replaceAll(findText.getText(), replaceText.getText(), caseSensitive.isSelected()));
+
+        dialog.setOnShown(event -> {
+            String selectedText = editor.getSelectedText();
+            if (selectedText != null && !selectedText.isBlank() && !selectedText.contains("\n") && !selectedText.contains("\r")) {
+                findText.setText(selectedText);
+            }
+            findText.requestFocus();
+        });
+        dialog.showAndWait();
+    }
+
+    private boolean findNext(String query, boolean caseSensitive) {
+        String cleanQuery = query == null ? "" : query;
+        if (cleanQuery.isEmpty()) {
+            return false;
+        }
+        String source = editor.getText();
+        String haystack = caseSensitive ? source : source.toLowerCase();
+        String needle = caseSensitive ? cleanQuery : cleanQuery.toLowerCase();
+        int start = Math.max(editor.getCaretPosition(), editor.getSelection().getEnd());
+        int index = haystack.indexOf(needle, start);
+        if (index < 0 && start > 0) {
+            index = haystack.indexOf(needle);
+        }
+        if (index < 0) {
+            messages.getItems().add(new UiMessage("Текст не найден: " + cleanQuery, "", 0));
+            return false;
+        }
+        editor.selectRange(index, index + cleanQuery.length());
+        editor.requestFollowCaret();
+        return true;
+    }
+
+    private boolean findPrevious(String query, boolean caseSensitive) {
+        String cleanQuery = query == null ? "" : query;
+        if (cleanQuery.isEmpty()) {
+            return false;
+        }
+        String source = editor.getText();
+        String haystack = caseSensitive ? source : source.toLowerCase();
+        String needle = caseSensitive ? cleanQuery : cleanQuery.toLowerCase();
+        int start = Math.max(0, editor.getSelection().getStart() - 1);
+        int index = haystack.lastIndexOf(needle, start);
+        if (index < 0 && start < haystack.length()) {
+            index = haystack.lastIndexOf(needle);
+        }
+        if (index < 0) {
+            messages.getItems().add(new UiMessage("Текст не найден: " + cleanQuery, "", 0));
+            return false;
+        }
+        editor.selectRange(index, index + cleanQuery.length());
+        editor.requestFollowCaret();
+        return true;
+    }
+
+    private void replaceCurrent(String query, String replacement, boolean caseSensitive) {
+        String selectedText = editor.getSelectedText();
+        String cleanQuery = query == null ? "" : query;
+        if (cleanQuery.isEmpty()) {
+            return;
+        }
+        boolean matches = caseSensitive
+                ? selectedText.equals(cleanQuery)
+                : selectedText.equalsIgnoreCase(cleanQuery);
+        if (!matches && !findNext(cleanQuery, caseSensitive)) {
+            return;
+        }
+        editor.replaceSelection(replacement == null ? "" : replacement);
+        findNext(cleanQuery, caseSensitive);
+    }
+
+    private void replaceAll(String query, String replacement, boolean caseSensitive) {
+        String cleanQuery = query == null ? "" : query;
+        if (cleanQuery.isEmpty()) {
+            return;
+        }
+        int flags = caseSensitive ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+        Pattern pattern = Pattern.compile(Pattern.quote(cleanQuery), flags);
+        Matcher matcher = pattern.matcher(editor.getText());
+        String updated = matcher.replaceAll(Matcher.quoteReplacement(replacement == null ? "" : replacement));
+        editor.replaceText(updated);
+    }
+
     private void createNewDocument() {
-        currentFile = null;
-        editor.replaceText(documentService.newModuleTemplate());
-        dirty = false;
-        parseAndRefresh();
-        highlightEditor();
-        updateTitle();
+        String name = "Новая модель " + untitledCounter++;
+        addSession(new EditorSession(name, null, documentService.newModuleTemplate(), false));
     }
 
     private void openDocument() {
@@ -415,13 +778,13 @@ public final class MainView {
         if (file == null) {
             return;
         }
+        EditorSession existing = findSession(file);
+        if (existing != null) {
+            selectSession(existing);
+            return;
+        }
         try {
-            editor.replaceText(documentService.read(file));
-            currentFile = file;
-            dirty = false;
-            parseAndRefresh();
-            highlightEditor();
-            updateTitle();
+            addSession(new EditorSession(file.getFileName().toString(), file, documentService.read(file), false));
         } catch (IOException ex) {
             showError("Не удалось открыть файл", ex.getMessage());
         }
@@ -433,12 +796,16 @@ public final class MainView {
             return;
         }
         try {
+            updatingEditor = true;
             editor.replaceText(documentService.read(currentFile));
+            updatingEditor = false;
             dirty = false;
             parseAndRefresh();
             highlightEditor();
+            syncCurrentSession();
             updateTitle();
         } catch (IOException ex) {
+            updatingEditor = false;
             showError("Не удалось перезагрузить файл", ex.getMessage());
         }
     }
@@ -449,8 +816,10 @@ public final class MainView {
             return;
         }
         try {
+            currentFile = ensureYangExtension(currentFile);
             documentService.write(currentFile, editor.getText());
             dirty = false;
+            syncCurrentSession();
             updateTitle();
         } catch (IOException ex) {
             showError("Не удалось сохранить файл", ex.getMessage());
@@ -459,31 +828,56 @@ public final class MainView {
 
     private void saveDocumentAs() {
         FileChooser chooser = yangChooser("Сохранить YANG модель");
+        chooser.setInitialFileName(defaultYangFileName());
         Path file = selectedPath(chooser.showSaveDialog(stage));
         if (file == null) {
             return;
         }
-        currentFile = file;
+        currentFile = ensureYangExtension(file);
         saveDocument();
     }
 
     private void exportDocument() {
         FileChooser chooser = yangChooser("Экспортировать YANG модель");
+        chooser.setInitialFileName(defaultYangFileName());
         Path file = selectedPath(chooser.showSaveDialog(stage));
         if (file == null) {
             return;
         }
         try {
-            documentService.write(file, editor.getText());
+            documentService.write(ensureYangExtension(file), editor.getText());
         } catch (IOException ex) {
             showError("Не удалось экспортировать файл", ex.getMessage());
+        }
+    }
+
+    private void exportXmlSample() {
+        YangParseResult result = documentService.parse(editor.getText(), currentFile);
+        setDocument(result.document(), captureTreeState());
+        if (!result.errors().isEmpty()) {
+            messages.getItems().setAll(result.errors().stream()
+                    .map(error -> new UiMessage(error, "", 0))
+                    .toList());
+            showError("XML не экспортирован", "Сначала исправьте ошибки разбора YANG-модели.");
+            return;
+        }
+        FileChooser chooser = xmlChooser("Экспортировать XML-пример");
+        chooser.setInitialFileName(defaultXmlFileName());
+        Path file = selectedPath(chooser.showSaveDialog(stage));
+        if (file == null) {
+            return;
+        }
+        try {
+            Files.writeString(ensureXmlExtension(file), xmlSampleGenerator.generate(result.document()), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            showError("Не удалось экспортировать XML", ex.getMessage());
         }
     }
 
     private void validateDocument() {
         TreeState treeState = captureTreeState();
         YangParseResult result = documentService.parse(editor.getText(), currentFile);
-        List<UiMessage> validationMessages = validator.validate(result.document()).stream()
+        List<UiMessage> validationMessages = validator.validate(editor.getText(), currentFile).stream()
                 .map(this::formatIssue)
                 .collect(Collectors.toCollection(java.util.ArrayList::new));
         List<UiMessage> parseErrors = result.errors().stream()
@@ -504,6 +898,7 @@ public final class MainView {
         messages.getItems().setAll(result.errors().stream()
                 .map(error -> new UiMessage(error, "", 0))
                 .toList());
+        syncCurrentSession();
     }
 
     private void setDocument(YangDocument document) {
@@ -537,6 +932,8 @@ public final class MainView {
         nodeDataType.setValue(node.dataType().isBlank() ? "" : node.dataType());
         nodeDescription.setText(blank(node.description()));
         nodeConstraints.setText(formatConstraints(node.constraints()));
+        setBooleanConstraintCheck(nodeConfig, node.constraints().get("config"));
+        setBooleanConstraintCheck(nodeMandatory, node.constraints().get("mandatory"));
     }
 
     private void applySelectedNodeChanges() {
@@ -547,6 +944,8 @@ public final class MainView {
         selectedNode.setDataType(valueOrEmpty(nodeDataType.getValue()));
         selectedNode.setDescription("-".equals(nodeDescription.getText()) ? "" : valueOrEmpty(nodeDescription.getText()));
         selectedNode.clearConstraints();
+        applyBooleanConstraint(selectedNode, "config", nodeConfig);
+        applyBooleanConstraint(selectedNode, "mandatory", nodeMandatory);
         applyConstraints(selectedNode, nodeConstraints.getText());
         regenerateTextFromModel();
     }
@@ -569,6 +968,8 @@ public final class MainView {
                     : valueOrEmpty(newNodeDataType.getValue()));
         }
         child.setDescription(valueOrEmpty(newNodeDescription.getText()));
+        applyBooleanConstraint(child, "config", newNodeConfig);
+        applyBooleanConstraint(child, "mandatory", newNodeMandatory);
         applyConstraints(child, newNodeConstraints.getText());
         parent.addChild(child);
         clearNewNodeForm();
@@ -580,6 +981,8 @@ public final class MainView {
         newNodeDescription.clear();
         newNodeConstraints.clear();
         newNodeDataType.setValue("string");
+        resetBooleanConstraintCheck(newNodeConfig);
+        resetBooleanConstraintCheck(newNodeMandatory);
         childType.getSelectionModel().select(YangNodeType.LEAF);
     }
 
@@ -625,6 +1028,7 @@ public final class MainView {
         dirty = true;
         parseAndRefresh();
         updateTitle();
+        scheduleAutoSave();
     }
 
     private void applyConstraints(YangNode node, String text) {
@@ -643,6 +1047,10 @@ public final class MainView {
             }
             String keyword = clean.substring(0, separator).strip();
             String value = clean.substring(separator + 1).strip();
+            if ("config".equals(keyword) || "mandatory".equals(keyword)) {
+                messages.getItems().add(new UiMessage("Оператор `" + keyword + "` задается галочкой и пропущен из текстового поля.", "", 0));
+                continue;
+            }
             node.addConstraint(keyword, value);
         }
     }
@@ -664,6 +1072,8 @@ public final class MainView {
             return "";
         }
         return constraints.entrySet().stream()
+                .filter(entry -> !"config".equals(entry.getKey()))
+                .filter(entry -> !"mandatory".equals(entry.getKey()))
                 .map(entry -> entry.getKey() + ": " + String.join(", ", entry.getValue()))
                 .collect(Collectors.joining(System.lineSeparator()));
     }
@@ -678,6 +1088,102 @@ public final class MainView {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.strip();
+    }
+
+    private void configureBooleanConstraintCheck(CheckBox checkBox) {
+        checkBox.setAllowIndeterminate(true);
+        resetBooleanConstraintCheck(checkBox);
+    }
+
+    private void resetBooleanConstraintCheck(CheckBox checkBox) {
+        checkBox.setIndeterminate(true);
+        checkBox.setSelected(false);
+    }
+
+    private void setBooleanConstraintCheck(CheckBox checkBox, List<String> values) {
+        if (values == null || values.isEmpty()) {
+            resetBooleanConstraintCheck(checkBox);
+            return;
+        }
+        String value = values.get(values.size() - 1);
+        if ("true".equalsIgnoreCase(value)) {
+            checkBox.setIndeterminate(false);
+            checkBox.setSelected(true);
+            return;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            checkBox.setIndeterminate(false);
+            checkBox.setSelected(false);
+            return;
+        }
+        resetBooleanConstraintCheck(checkBox);
+    }
+
+    private void applyBooleanConstraint(YangNode node, String keyword, CheckBox checkBox) {
+        if (!checkBox.isIndeterminate()) {
+            node.addConstraint(keyword, Boolean.toString(checkBox.isSelected()));
+        }
+    }
+
+    private void scheduleAutoSave() {
+        if (currentFile != null) {
+            autoSaveDelay.playFromStart();
+        }
+    }
+
+    private void autoSaveDocument() {
+        if (currentFile == null || !dirty) {
+            return;
+        }
+        try {
+            currentFile = ensureYangExtension(currentFile);
+            documentService.write(currentFile, editor.getText());
+            dirty = false;
+            syncCurrentSession();
+            updateTitle();
+        } catch (IOException ex) {
+            messages.getItems().add(new UiMessage("Автосохранение не выполнено: " + ex.getMessage(), "", 0));
+        }
+    }
+
+    private Path ensureYangExtension(Path file) {
+        String fileName = file.getFileName().toString();
+        String lower = fileName.toLowerCase();
+        if (lower.endsWith(".yang")) {
+            return file;
+        }
+        if (lower.endsWith(".txt")) {
+            return file.resolveSibling(fileName.substring(0, fileName.length() - 4) + ".yang");
+        }
+        return file.resolveSibling(fileName + ".yang");
+    }
+
+    private Path ensureXmlExtension(Path file) {
+        String fileName = file.getFileName().toString();
+        if (fileName.toLowerCase().endsWith(".xml")) {
+            return file;
+        }
+        int extension = fileName.lastIndexOf('.');
+        if (extension > 0) {
+            return file.resolveSibling(fileName.substring(0, extension) + ".xml");
+        }
+        return file.resolveSibling(fileName + ".xml");
+    }
+
+    private String defaultYangFileName() {
+        if (currentFile != null) {
+            return ensureYangExtension(currentFile).getFileName().toString();
+        }
+        return "model.yang";
+    }
+
+    private String defaultXmlFileName() {
+        if (currentFile == null) {
+            return "sample.xml";
+        }
+        String fileName = currentFile.getFileName().toString();
+        int extension = fileName.lastIndexOf('.');
+        return (extension > 0 ? fileName.substring(0, extension) : fileName) + ".xml";
     }
 
     private String addIndent(String block) {
@@ -818,13 +1324,106 @@ public final class MainView {
         dialog.initOwner(stage);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
-        TextArea content = new TextArea(readInstructionText());
-        content.setEditable(false);
-        content.setWrapText(true);
-        content.setPrefColumnCount(100);
-        content.setPrefRowCount(34);
-        dialog.getDialogPane().setContent(content);
+        ScrollPane scrollPane = new ScrollPane(markdownView(readInstructionText()));
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportWidth(900);
+        scrollPane.setPrefViewportHeight(680);
+        dialog.getDialogPane().setContent(scrollPane);
         dialog.showAndWait();
+    }
+
+    private VBox markdownView(String markdown) {
+        VBox content = new VBox(8);
+        content.setPadding(new Insets(16));
+        boolean codeBlock = false;
+        StringBuilder code = new StringBuilder();
+        for (String line : markdown.split("\\R", -1)) {
+            if (line.startsWith("```")) {
+                if (codeBlock) {
+                    content.getChildren().add(codeBlock(code.toString().stripTrailing()));
+                    code.setLength(0);
+                }
+                codeBlock = !codeBlock;
+                continue;
+            }
+            if (codeBlock) {
+                code.append(line).append(System.lineSeparator());
+                continue;
+            }
+            addMarkdownLine(content, line);
+        }
+        if (codeBlock && !code.isEmpty()) {
+            content.getChildren().add(codeBlock(code.toString().stripTrailing()));
+        }
+        return content;
+    }
+
+    private void addMarkdownLine(VBox content, String line) {
+        if (line.isBlank()) {
+            content.getChildren().add(new Label(""));
+            return;
+        }
+        String text = line.strip();
+        if (text.startsWith("## ")) {
+            Label label = new Label(text.substring(3));
+            label.setFont(Font.font("System", FontWeight.BOLD, 18));
+            label.setPadding(new Insets(10, 0, 2, 0));
+            content.getChildren().add(label);
+            return;
+        }
+        if (text.startsWith("# ")) {
+            Label label = new Label(text.substring(2));
+            label.setFont(Font.font("System", FontWeight.BOLD, 22));
+            label.setPadding(new Insets(0, 0, 4, 0));
+            content.getChildren().add(label);
+            return;
+        }
+        if (text.matches("\\d+\\.\\s+.*")) {
+            content.getChildren().add(markdownTextFlow(text));
+            return;
+        }
+        if (text.startsWith("- ")) {
+            content.getChildren().add(markdownTextFlow("• " + text.substring(2)));
+            return;
+        }
+        content.getChildren().add(markdownTextFlow(text));
+    }
+
+    private TextFlow markdownTextFlow(String line) {
+        TextFlow flow = new TextFlow();
+        flow.setLineSpacing(2);
+        Matcher matcher = Pattern.compile("`([^`]+)`").matcher(line);
+        int cursor = 0;
+        while (matcher.find()) {
+            if (matcher.start() > cursor) {
+                flow.getChildren().add(normalText(line.substring(cursor, matcher.start())));
+            }
+            Text code = normalText(matcher.group(1));
+            code.setFont(Font.font("Consolas", FontWeight.NORMAL, 13));
+            code.setStyle("-fx-fill: #0f172a;");
+            flow.getChildren().add(code);
+            cursor = matcher.end();
+        }
+        if (cursor < line.length()) {
+            flow.getChildren().add(normalText(line.substring(cursor)));
+        }
+        return flow;
+    }
+
+    private Text normalText(String value) {
+        Text text = new Text(value);
+        text.setFont(Font.font("System", FontPosture.REGULAR, 14));
+        return text;
+    }
+
+    private TextFlow codeBlock(String value) {
+        TextFlow flow = new TextFlow();
+        Text text = new Text(value.isBlank() ? " " : value);
+        text.setFont(Font.font("Consolas", FontWeight.NORMAL, 13));
+        flow.getChildren().add(text);
+        flow.setPadding(new Insets(8));
+        flow.setStyle("-fx-background-color: #f1f5f9; -fx-border-color: #cbd5e1; -fx-border-radius: 4; -fx-background-radius: 4;");
+        return flow;
     }
 
     private String readInstructionText() {
@@ -867,12 +1466,30 @@ public final class MainView {
         return chooser;
     }
 
+    private FileChooser xmlChooser(String title) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(title);
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("XML files", "*.xml"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
+        if (currentFile != null && currentFile.getParent() != null) {
+            chooser.setInitialDirectory(currentFile.getParent().toFile());
+        }
+        return chooser;
+    }
+
     private Path selectedPath(java.io.File file) {
         return file == null ? null : file.toPath();
     }
 
     private void updateTitle() {
-        String fileName = currentFile == null ? "Новая модель" : currentFile.getFileName().toString();
+        String fileName = currentSession == null
+                ? "Новая модель"
+                : currentSession.displayName();
+        if (currentSession != null) {
+            currentSession.file = currentFile;
+            currentSession.dirty = dirty;
+            updateTabTitle(currentSession);
+        }
         stage.setTitle((dirty ? "* " : "") + fileName + " - YANG Model Designer");
     }
 
@@ -1042,9 +1659,16 @@ public final class MainView {
         if (node.line() <= 0 || editor.getLength() == 0) {
             return;
         }
-        int position = offsetForLine(editor.getText(), node.line());
+        navigateToLine(node.line());
+    }
+
+    private void navigateToLine(int line) {
+        if (line <= 0 || editor.getLength() == 0) {
+            return;
+        }
+        int position = offsetForLine(editor.getText(), line);
         editor.moveTo(position);
-        editor.requestFollowCaret();
+        editor.showParagraphAtCenter(Math.max(0, line - 1));
     }
 
     private int offsetForLine(String text, int line) {
@@ -1096,6 +1720,26 @@ public final class MainView {
         @Override
         public String toString() {
             return text;
+        }
+    }
+
+    private static final class EditorSession {
+        private final String untitledName;
+        private Path file;
+        private String text;
+        private boolean dirty;
+        private TreeState treeState = TreeState.empty();
+        private Tab tab;
+
+        private EditorSession(String untitledName, Path file, String text, boolean dirty) {
+            this.untitledName = untitledName;
+            this.file = file;
+            this.text = text;
+            this.dirty = dirty;
+        }
+
+        private String displayName() {
+            return file == null ? untitledName : file.getFileName().toString();
         }
     }
 
