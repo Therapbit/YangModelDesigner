@@ -74,6 +74,30 @@ class YangParserTest {
     }
 
     @Test
+    void parsesRangeFromTypeStatement() {
+        String source = """
+                module example {
+                  yang-version 1.1;
+                  namespace "urn:example";
+                  prefix ex;
+
+                  leaf port {
+                    type uint16 {
+                      range "1..65535";
+                    }
+                  }
+                }
+                """;
+
+        YangParseResult result = parser.parse(source, null);
+
+        YangNode leaf = result.document().root().children().getFirst();
+        assertEquals("uint16", leaf.dataType());
+        assertEquals("1..65535", leaf.constraints().get("range").getFirst());
+    }
+
+
+    @Test
     void parsesAdditionalYang11Statements() {
         String source = """
                 module advanced {

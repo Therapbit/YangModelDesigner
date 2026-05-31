@@ -1,5 +1,15 @@
 E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\parser\YangParserTest.java
 E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\service\YangWriterTest.java
 E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\service\YangXmlSampleGeneratorTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\FindReplaceControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\InstructionControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\YangDocumentAnalysisControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\YangDocumentControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\YangNodeControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\controller\YangTreeControllerTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\editor\EditorTextSupportTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\editor\YangCompletionSupportTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\editor\YangSyntaxHighlighterTest.java
+E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\ui\state\YangEditorSessionManagerTest.java
 E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\validation\PyangValidatorTest.java
 E:\programm\YangModelDesigner\src\test\java\com\yangdesigner\yangmodeldesigner\validation\YangValidatorTest.java

@@ -1,0 +1,647 @@
+.modern-root {
+    -ctk-bg: #0c1626;
+    -ctk-bg-deep: #081120;
+    -ctk-panel: rgba(36, 51, 72, 0.82);
+    -ctk-panel-soft: rgba(45, 63, 88, 0.72);
+    -ctk-panel-strong: rgba(54, 74, 102, 0.88);
+    -ctk-border: rgba(120, 151, 190, 0.24);
+    -ctk-border-strong: rgba(132, 184, 255, 0.46);
+    -ctk-text: #dcecff;
+    -ctk-muted: #98abc4;
+    -ctk-accent: #2fa8ff;
+    -ctk-accent-2: #56e1ff;
+    -ctk-accent-soft: rgba(47, 168, 255, 0.18);
+    -ctk-accent-glow: rgba(36, 139, 255, 0.42);
+    -ctk-green: #5ee8a9;
+    -ctk-yellow: #ffd166;
+    -ctk-purple: #b9a1ff;
+
+    -fx-font-family: "Inter", "Segoe UI", "Arial";
+    -fx-background-color:
+            radial-gradient(center 64% 82%, radius 72%, rgba(37, 116, 255, 0.78), transparent),
+            radial-gradient(center 96% 28%, radius 58%, rgba(40, 196, 255, 0.34), transparent),
+            radial-gradient(center 24% 0%, radius 72%, rgba(25, 61, 112, 0.42), transparent),
+            linear-gradient(to bottom right, #091321, #12243b 50%, #143c78);
+    -fx-text-fill: -ctk-text;
+}
+
+.modern-root.modern-theme-light {
+    -ctk-bg: #eaf4ff;
+    -ctk-bg-deep: #d8ecff;
+    -ctk-panel: rgba(255, 255, 255, 0.76);
+    -ctk-panel-soft: rgba(236, 246, 255, 0.82);
+    -ctk-panel-strong: rgba(218, 238, 255, 0.92);
+    -ctk-border: rgba(57, 113, 176, 0.20);
+    -ctk-border-strong: rgba(25, 132, 255, 0.48);
+    -ctk-text: #17304d;
+    -ctk-muted: #60758e;
+    -ctk-accent: #1b8fe8;
+    -ctk-accent-2: #22c7f7;
+    -ctk-accent-soft: rgba(27, 143, 232, 0.13);
+    -ctk-accent-glow: rgba(33, 150, 243, 0.20);
+    -ctk-green: #168a5b;
+    -ctk-yellow: #a66a00;
+    -ctk-purple: #7353d8;
+
+    -fx-background-color:
+            radial-gradient(center 62% 82%, radius 72%, rgba(53, 157, 255, 0.42), transparent),
+            radial-gradient(center 96% 28%, radius 58%, rgba(57, 205, 255, 0.18), transparent),
+            linear-gradient(to bottom right, #e8f4ff, #f7fbff 48%, #dbeeff);
+}
+
+.modern-root.modern-theme-dark {
+    -fx-background-color:
+            radial-gradient(center 64% 82%, radius 72%, rgba(37, 116, 255, 0.78), transparent),
+            radial-gradient(center 96% 28%, radius 58%, rgba(40, 196, 255, 0.34), transparent),
+            radial-gradient(center 24% 0%, radius 72%, rgba(25, 61, 112, 0.42), transparent),
+            linear-gradient(to bottom right, #091321, #12243b 50%, #143c78);
+}
+
+.modern-root .menu-bar {
+    -fx-background-color: rgba(10, 18, 31, 0.74);
+    -fx-border-color: rgba(112, 151, 196, 0.16);
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 6 10 6 10;
+}
+
+.modern-root.modern-theme-light .menu-bar {
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+}
+
+.modern-root .menu,
+.modern-root .menu-item {
+    -fx-background-radius: 7;
+}
+
+.modern-root .menu:hover,
+.modern-root .menu:showing,
+.modern-root .menu-item:focused {
+    -fx-background-color: -ctk-accent-soft;
+}
+
+.modern-root .menu .label,
+.modern-root .menu-item .label {
+    -fx-text-fill: -ctk-text;
+    -fx-font-size: 12px;
+}
+
+.modern-root .modern-menu-icon {
+    -fx-alignment: center;
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-background-radius: 7;
+    -fx-background-color: linear-gradient(to bottom right, rgba(45, 168, 255, 0.24), rgba(48, 93, 155, 0.18));
+    -fx-border-color: rgba(91, 188, 255, 0.28);
+    -fx-border-radius: 7;
+    -fx-text-fill: #9fe8ff;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.modern-root.modern-theme-light .modern-menu-icon {
+    -fx-background-color: rgba(27, 143, 232, 0.12);
+    -fx-text-fill: #1b8fe8;
+}
+
+.modern-root .context-menu {
+    -fx-background-color: rgba(29, 43, 63, 0.96);
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: -ctk-border;
+    -fx-padding: 7;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 22, 0.22, 0, 8);
+}
+
+.modern-root.modern-theme-light .context-menu {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+}
+
+.modern-root .split-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 14;
+}
+
+.modern-root .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 0 7 0 7;
+}
+
+.modern-root .tree-view,
+.modern-root .tab-pane,
+.modern-root .list-view,
+.modern-root .scroll-pane,
+.modern-root .virtualized-scroll-pane {
+    -fx-background-color: -ctk-panel;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-color: -ctk-border;
+    -fx-effect: dropshadow(gaussian, rgba(41, 136, 255, 0.16), 24, 0.18, 0, 8);
+}
+
+.modern-root .properties-scroll-pane,
+.modern-root .properties-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.modern-root .properties-scroll-pane {
+    -fx-padding: 0;
+}
+
+.modern-root .tree-view {
+    -fx-padding: 7;
+}
+
+.modern-root .tree-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 2 5 2 5;
+    -fx-alignment: center-left;
+    -fx-cell-size: 24;
+}
+
+.modern-root .tree-cell > .tree-disclosure-node {
+    -fx-alignment: center;
+    -fx-padding: 0 4 0 0;
+    -fx-translate-y: 5;
+}
+
+.modern-root .tree-cell > .tree-disclosure-node > .arrow {
+    -fx-background-color: -ctk-muted;
+}
+
+.modern-root .tree-cell:selected > .tree-disclosure-node > .arrow {
+    -fx-background-color: -ctk-accent-2;
+}
+
+.modern-root.modern-theme-light .tree-cell:selected > .tree-disclosure-node > .arrow {
+    -fx-background-color: -ctk-text;
+}
+
+.modern-root .tree-cell:selected {
+    -fx-background-color: linear-gradient(to right, rgba(40, 167, 255, 0.28), rgba(51, 122, 255, 0.14));
+    -fx-background-radius: 7;
+}
+
+.modern-root .tree-cell:filled:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 7;
+}
+
+.modern-root.modern-theme-light .tree-cell:filled:hover {
+    -fx-background-color: rgba(27, 143, 232, 0.10);
+}
+
+.modern-root .yang-tree-node {
+    -fx-alignment: center-left;
+    -fx-min-height: 22;
+}
+
+.modern-root .yang-tree-type-icon {
+    -fx-alignment: center;
+    -fx-min-width: 21;
+    -fx-min-height: 19;
+    -fx-font-family: "JetBrains Mono", "Segoe UI", "Arial";
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -ctk-muted;
+}
+
+.modern-root .yang-tree-type-label {
+    -fx-text-fill: -ctk-accent-2;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.modern-root .yang-tree-title {
+    -fx-text-fill: -ctk-text;
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+}
+
+.modern-root .yang-tree-type-module,
+.modern-root .yang-tree-type-submodule,
+.modern-root .yang-tree-type-rpc,
+.modern-root .yang-tree-type-action,
+.modern-root .yang-tree-type-typedef,
+.modern-root .yang-tree-type-identity {
+    -fx-text-fill: -ctk-purple;
+}
+
+.modern-root .yang-tree-type-container,
+.modern-root .yang-tree-type-list,
+.modern-root .yang-tree-type-leaf,
+.modern-root .yang-tree-type-leaf-list {
+    -fx-text-fill: -ctk-green;
+}
+
+.modern-root .yang-tree-type-input,
+.modern-root .yang-tree-type-output {
+    -fx-text-fill: -ctk-accent-2;
+}
+
+.modern-root .yang-tree-type-notification,
+.modern-root .yang-tree-type-choice,
+.modern-root .yang-tree-type-case {
+    -fx-text-fill: -ctk-yellow;
+}
+
+.modern-root .yang-tree-access {
+    -fx-alignment: center;
+    -fx-min-width: 34;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-color: rgba(116, 185, 255, 0.28);
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+    -fx-padding: 1 7 1 7;
+}
+
+.modern-root .yang-tree-access-rw {
+    -fx-background-color: rgba(55, 220, 164, 0.16);
+    -fx-text-fill: -ctk-green;
+}
+
+.modern-root .yang-tree-access-ro {
+    -fx-background-color: rgba(150, 169, 194, 0.14);
+    -fx-text-fill: -ctk-muted;
+}
+
+.modern-root .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(20, 33, 52, 0.68);
+    -fx-background-radius: 4 4 0 0;
+    -fx-border-color: rgba(118, 158, 203, 0.16);
+    -fx-border-width: 0 0 1 0;
+}
+
+.modern-root.modern-theme-light .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(237, 247, 255, 0.76);
+}
+
+.modern-root .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 4 4 0 0;
+    -fx-padding: 6 12 6 12;
+}
+
+.modern-root .tab:hover {
+    -fx-background-color: rgba(82, 169, 255, 0.12);
+}
+
+.modern-root .tab:selected {
+    -fx-background-color: rgba(44, 93, 153, 0.40);
+    -fx-border-color: -ctk-accent-2;
+    -fx-border-width: 0 0 2 0;
+}
+
+.modern-root.modern-theme-light .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.84);
+}
+
+.modern-root .tab .tab-label {
+    -fx-text-fill: -ctk-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.modern-root .tab:selected .tab-label {
+    -fx-text-fill: -ctk-text;
+}
+
+.modern-root .button {
+    -fx-background-color: linear-gradient(to bottom, #34aefb, #1e86db);
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: rgba(155, 220, 255, 0.34);
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-padding: 7 13 7 13;
+    -fx-effect: dropshadow(gaussian, rgba(35, 143, 255, 0.28), 12, 0.18, 0, 3);
+}
+
+.modern-root .button:hover {
+    -fx-background-color: linear-gradient(to bottom, #55c5ff, #2396ef);
+}
+
+.modern-root .button:pressed {
+    -fx-background-color: linear-gradient(to bottom, #1c75c5, #1668b2);
+}
+
+.modern-root .label {
+    -fx-text-fill: -ctk-text;
+}
+
+.modern-root .text-field,
+.modern-root .text-area,
+.modern-root .combo-box-base {
+    -fx-background-color: rgba(36, 55, 80, 0.70);
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-color: rgba(136, 173, 212, 0.25);
+    -fx-padding: 6 8 6 8;
+}
+
+.modern-root.modern-theme-light .text-field,
+.modern-root.modern-theme-light .text-area,
+.modern-root.modern-theme-light .combo-box-base {
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+}
+
+.modern-root .text-field:hover,
+.modern-root .text-area:hover,
+.modern-root .combo-box-base:hover {
+    -fx-border-color: rgba(116, 194, 255, 0.48);
+}
+
+.modern-root .text-field:focused,
+.modern-root .text-area:focused,
+.modern-root .combo-box-base:focused {
+    -fx-background-color: rgba(43, 68, 101, 0.86);
+    -fx-border-color: -ctk-accent-2;
+    -fx-effect: dropshadow(gaussian, -ctk-accent-glow, 14, 0.28, 0, 0);
+}
+
+.modern-root.modern-theme-light .text-field:focused,
+.modern-root.modern-theme-light .text-area:focused,
+.modern-root.modern-theme-light .combo-box-base:focused {
+    -fx-background-color: rgba(255, 255, 255, 0.94);
+}
+
+.modern-root .text-area .content {
+    -fx-background-color: rgba(36, 55, 80, 0.70);
+    -fx-background-radius: 4;
+}
+
+.modern-root.modern-theme-light .text-area .content {
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+}
+
+.modern-root .text-area:focused .content {
+    -fx-background-color: rgba(43, 68, 101, 0.86);
+}
+
+.modern-root.modern-theme-light .text-area:focused .content {
+    -fx-background-color: rgba(255, 255, 255, 0.94);
+}
+
+.modern-root .text-area .viewport {
+    -fx-background-color: transparent;
+}
+
+.modern-root .text-input {
+    -fx-text-fill: -ctk-text;
+    -fx-prompt-text-fill: -ctk-muted;
+    -fx-highlight-fill: rgba(60, 190, 255, 0.28);
+    -fx-highlight-text-fill: -ctk-text;
+}
+
+.modern-root .combo-box .list-cell {
+    -fx-text-fill: -ctk-text;
+    -fx-background-color: transparent;
+}
+
+.modern-root .combo-box-popup .list-view {
+    -fx-background-color: rgba(29, 43, 63, 0.96);
+    -fx-border-color: -ctk-border;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.modern-root.modern-theme-light .combo-box-popup .list-view {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+}
+
+.modern-root .combo-box-popup .list-cell:hover,
+.modern-root .combo-box-popup .list-cell:selected {
+    -fx-background-color: -ctk-accent-soft;
+}
+
+.modern-root .check-box {
+    -fx-text-fill: -ctk-text;
+    -fx-font-size: 12px;
+}
+
+.modern-root .check-box .box {
+    -fx-background-color: rgba(30, 48, 72, 0.72);
+    -fx-background-radius: 5;
+    -fx-border-color: rgba(137, 183, 227, 0.35);
+    -fx-border-radius: 5;
+    -fx-padding: 2;
+}
+
+.modern-root.modern-theme-light .check-box .box {
+    -fx-background-color: rgba(255, 255, 255, 0.82);
+}
+
+.modern-root .check-box:hover .box {
+    -fx-border-color: -ctk-accent-2;
+}
+
+.modern-root .check-box:selected .box {
+    -fx-background-color: linear-gradient(to bottom, #55d8ff, #2595e8);
+    -fx-border-color: #8ce9ff;
+}
+
+.modern-root .check-box.tri-state-true .box,
+.modern-root .check-box:selected .box {
+    -fx-background-color: linear-gradient(to bottom, #55d8ff, #2595e8);
+    -fx-border-color: #8ce9ff;
+}
+
+.modern-root .check-box.tri-state-true .mark,
+.modern-root .check-box:selected .mark {
+    -fx-background-color: #062038;
+    -fx-shape: "M 0 5 L 4 9 L 11 0 L 13 2 L 4 13 L -2 7 Z";
+    -fx-min-width: 10;
+    -fx-min-height: 8;
+    -fx-pref-width: 10;
+    -fx-pref-height: 8;
+    -fx-scale-x: 0.82;
+    -fx-scale-y: 0.82;
+}
+
+.modern-root.modern-theme-light .check-box.tri-state-true .mark,
+.modern-root.modern-theme-light .check-box:selected .mark {
+    -fx-background-color: white;
+}
+
+.modern-root .check-box.tri-state-unset .box,
+.modern-root .check-box:indeterminate .box {
+    -fx-background-color: -ctk-panel-strong;
+    -fx-border-color: -ctk-muted;
+}
+
+.modern-root .check-box.tri-state-unset .mark,
+.modern-root .check-box:indeterminate .mark {
+    -fx-background-color: -ctk-accent-2;
+    -fx-shape: "M 0 0 H 12 V 3 H 0 Z";
+    -fx-min-width: 10;
+    -fx-min-height: 3;
+    -fx-pref-width: 10;
+    -fx-pref-height: 3;
+}
+
+.modern-root .check-box.tri-state-false .box {
+    -fx-background-color: rgba(30, 48, 72, 0.72);
+    -fx-border-color: rgba(137, 183, 227, 0.35);
+}
+
+.modern-root .check-box.tri-state-false .mark {
+    -fx-background-color: transparent;
+}
+
+.modern-root .tri-state-check {
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+}
+
+.modern-root .tri-state-indicator {
+    -fx-alignment: center;
+    -fx-min-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-width: 16;
+    -fx-pref-height: 16;
+    -fx-max-width: 16;
+    -fx-max-height: 16;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+}
+
+.modern-root .tri-state-caption {
+    -fx-text-fill: -ctk-text;
+    -fx-font-size: 12px;
+}
+
+.modern-root .tri-state-check.tri-state-unset .tri-state-indicator {
+    -fx-background-color: rgba(47, 168, 255, 0.08);
+    -fx-border-color: -ctk-accent-2;
+    -fx-text-fill: -ctk-accent-2;
+}
+
+.modern-root .tri-state-check.tri-state-true .tri-state-indicator {
+    -fx-background-color: linear-gradient(to bottom, #55d8ff, #2595e8);
+    -fx-border-color: #8ce9ff;
+    -fx-text-fill: white;
+}
+
+.modern-root .tri-state-check.tri-state-false .tri-state-indicator {
+    -fx-background-color: transparent;
+    -fx-border-color: -ctk-muted;
+    -fx-text-fill: transparent;
+}
+
+.modern-root.modern-theme-light .tri-state-check.tri-state-true .tri-state-indicator {
+    -fx-text-fill: white;
+}
+
+.modern-root.modern-theme-light .tri-state-check.tri-state-unset .tri-state-indicator {
+    -fx-background-color: rgba(27, 143, 232, 0.08);
+}
+
+.modern-root .search-bar {
+    -fx-background-color: rgba(28, 43, 64, 0.78);
+    -fx-border-color: rgba(116, 163, 214, 0.20);
+    -fx-border-width: 1 0 0 0;
+}
+
+.modern-root.modern-theme-light .search-bar {
+    -fx-background-color: rgba(237, 247, 255, 0.82);
+}
+
+.modern-root .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -ctk-text;
+    -fx-padding: 4 8 4 8;
+}
+
+.modern-root .list-cell:filled:hover,
+.modern-root .list-cell:selected {
+    -fx-background-color: -ctk-accent-soft;
+}
+
+.modern-root .yang-code-area {
+    -fx-background-color: rgba(10, 20, 34, 0.94);
+}
+
+.modern-root.modern-theme-light .yang-code-area {
+    -fx-background-color: rgba(250, 253, 255, 0.96);
+}
+
+.modern-root .yang-code-area .text {
+    -fx-fill: #f2f8ff;
+}
+
+.modern-root .yang-code-area .text.keyword {
+    -fx-fill: #4fd2ff;
+    -fx-font-weight: bold;
+}
+
+.modern-root .yang-code-area .text.type {
+    -fx-fill: #e4b6ff;
+    -fx-font-weight: bold;
+}
+
+.modern-root .yang-code-area .text.string {
+    -fx-fill: #8cffc4;
+}
+
+.modern-root .yang-code-area .text.comment {
+    -fx-fill: #9fb4ce;
+    -fx-font-style: italic;
+}
+
+.modern-root .yang-code-area .text.brace,
+.modern-root .yang-code-area .text.semicolon {
+    -fx-fill: #ffe082;
+    -fx-font-weight: bold;
+}
+
+.modern-root .yang-code-area .text.matching-brace {
+    -rtfx-background-color: rgba(86, 225, 255, 0.34);
+    -fx-fill: #ffffff;
+    -fx-underline: true;
+}
+
+.modern-root .lineno {
+    -fx-background-color: rgba(8, 17, 30, 0.94);
+    -fx-text-fill: #9db5d4;
+}
+
+.modern-root.modern-theme-light .lineno {
+    -fx-background-color: rgba(231, 242, 255, 0.86);
+    -fx-text-fill: #64758a;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text {
+    -fx-fill: #102033;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text.keyword {
+    -fx-fill: #006fc9;
+    -fx-font-weight: bold;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text.type {
+    -fx-fill: #8a36cf;
+    -fx-font-weight: bold;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text.string {
+    -fx-fill: #087a42;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text.comment {
+    -fx-fill: #60758e;
+    -fx-font-style: italic;
+}
+
+.modern-root.modern-theme-light .yang-code-area .text.brace,
+.modern-root.modern-theme-light .yang-code-area .text.semicolon {
+    -fx-fill: #c46b00;
+    -fx-font-weight: bold;
+}

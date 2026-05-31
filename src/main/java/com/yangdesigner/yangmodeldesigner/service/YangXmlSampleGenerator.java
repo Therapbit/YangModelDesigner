@@ -4,11 +4,14 @@ import com.yangdesigner.yangmodeldesigner.model.YangDocument;
 import com.yangdesigner.yangmodeldesigner.model.YangNode;
 import com.yangdesigner.yangmodeldesigner.model.YangNodeType;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public final class YangXmlSampleGenerator {
+    private static final String INDENT = "    ";
     private static final Set<YangNodeType> STRUCTURAL_NODES = Set.of(
             YangNodeType.CONTAINER,
             YangNodeType.LIST,
@@ -20,6 +23,7 @@ public final class YangXmlSampleGenerator {
 
     public String generate(YangDocument document) {
         StringBuilder builder = new StringBuilder();
+        Map<String, YangNode> groupings = collectGroupings(document.root());
         builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>").append(System.lineSeparator());
         String namespace = firstConstraint(document.root(), "namespace");
         if (namespace.isBlank()) {
@@ -28,42 +32,66 @@ public final class YangXmlSampleGenerator {
             builder.append("<data xmlns=\"").append(escapeAttribute(namespace)).append("\">").append(System.lineSeparator());
         }
         for (YangNode child : document.root().children()) {
-            writeNode(builder, child, 1);
+            writeNode(builder, child, 1, groupings, new HashSet<>());
         }
         builder.append("</data>").append(System.lineSeparator());
         return builder.toString();
     }
 
-    private void writeNode(StringBuilder builder, YangNode node, int indent) {
+    private void writeNode(StringBuilder builder, YangNode node, int indent, Map<String, YangNode> groupings, Set<String> activeUses) {
+        if (node.type() == YangNodeType.GROUPING) {
+            return;
+        }
+        if (node.type() == YangNodeType.USES) {
+            writeUses(builder, node, indent, groupings, activeUses);
+            return;
+        }
         if (!isRenderable(node)) {
             for (YangNode child : node.children()) {
-                writeNode(builder, child, indent);
+                writeNode(builder, child, indent, groupings, activeUses);
             }
             return;
         }
         switch (node.type()) {
-            case CONTAINER, LIST -> writeElementWithChildren(builder, node, indent);
+            case CONTAINER, LIST -> writeElementWithChildren(builder, node, indent, groupings, activeUses);
             case LEAF, LEAF_LIST -> writeLeaf(builder, node, indent);
             case ANYDATA, ANYXML -> line(builder, indent, "<" + xmlName(node.name()) + "/>");
             default -> {
                 for (YangNode child : node.children()) {
-                    writeNode(builder, child, indent);
+                    writeNode(builder, child, indent, groupings, activeUses);
                 }
             }
         }
     }
 
-    private void writeElementWithChildren(StringBuilder builder, YangNode node, int indent) {
+    private void writeElementWithChildren(StringBuilder builder, YangNode node, int indent, Map<String, YangNode> groupings, Set<String> activeUses) {
         String name = xmlName(node.name());
         line(builder, indent, "<" + name + ">");
-        if (node.children().isEmpty()) {
+        if (!hasRenderableChildren(node, groupings)) {
             line(builder, indent + 1, "<!-- empty " + node.type().keyword() + " -->");
         } else {
             for (YangNode child : node.children()) {
-                writeNode(builder, child, indent + 1);
+                writeNode(builder, child, indent + 1, groupings, activeUses);
             }
         }
         line(builder, indent, "</" + name + ">");
+    }
+
+    private void writeUses(StringBuilder builder, YangNode uses, int indent, Map<String, YangNode> groupings, Set<String> activeUses) {
+        YangNode grouping = groupings.get(uses.name());
+        if (grouping == null) {
+            grouping = groupings.get(unprefixedName(uses.name()));
+        }
+        if (grouping == null || !activeUses.add(grouping.name())) {
+            return;
+        }
+        try {
+            for (YangNode child : grouping.children()) {
+                writeNode(builder, child, indent, groupings, activeUses);
+            }
+        } finally {
+            activeUses.remove(grouping.name());
+        }
     }
 
     private void writeLeaf(StringBuilder builder, YangNode node, int indent) {
@@ -74,6 +102,46 @@ public final class YangXmlSampleGenerator {
 
     private boolean isRenderable(YangNode node) {
         return STRUCTURAL_NODES.contains(node.type());
+    }
+
+    private boolean hasRenderableChildren(YangNode node, Map<String, YangNode> groupings) {
+        for (YangNode child : node.children()) {
+            if (child.type() == YangNodeType.GROUPING) {
+                continue;
+            }
+            if (child.type() == YangNodeType.USES) {
+                if (groupings.containsKey(child.name()) || groupings.containsKey(unprefixedName(child.name()))) {
+                    return true;
+                }
+                continue;
+            }
+            if (isRenderable(child) || hasRenderableChildren(child, groupings)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Map<String, YangNode> collectGroupings(YangNode root) {
+        Map<String, YangNode> groupings = new LinkedHashMap<>();
+        collectGroupings(root, groupings);
+        return groupings;
+    }
+
+    private void collectGroupings(YangNode node, Map<String, YangNode> groupings) {
+        if (node.type() == YangNodeType.GROUPING && !node.name().isBlank()) {
+            groupings.putIfAbsent(node.name(), node);
+            groupings.putIfAbsent(unprefixedName(node.name()), node);
+        }
+        for (YangNode child : node.children()) {
+            collectGroupings(child, groupings);
+        }
+    }
+
+    private String unprefixedName(String name) {
+        String clean = name == null ? "" : name.strip();
+        int separator = clean.indexOf(':');
+        return separator >= 0 ? clean.substring(separator + 1) : clean;
     }
 
     private String sampleValue(String dataType, Map<String, List<String>> constraints) {
@@ -133,6 +201,6 @@ public final class YangXmlSampleGenerator {
     }
 
     private void line(StringBuilder builder, int indent, String text) {
-        builder.append("  ".repeat(indent)).append(text).append(System.lineSeparator());
+        builder.append(INDENT.repeat(indent)).append(text).append(System.lineSeparator());
     }
 }

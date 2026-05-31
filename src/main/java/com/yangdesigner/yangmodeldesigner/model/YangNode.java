@@ -85,7 +85,7 @@ public final class YangNode {
 
     public void clearConstraints() {
         for (String keyword : constraints.keySet()) {
-            statement().ifPresent(statement -> statement.removeChildren(keyword));
+            statement().ifPresent(statement -> removeStatementConstraint(statement, keyword));
         }
         constraints.clear();
     }
@@ -93,7 +93,7 @@ public final class YangNode {
     public void addConstraint(String keyword, String value) {
         constraints.computeIfAbsent(keyword, ignored -> new ArrayList<>())
                 .add(Objects.requireNonNullElse(value, ""));
-        statement().ifPresent(statement -> statement.addChildOrdered(new YangStatement(keyword, value, 0)));
+        statement().ifPresent(statement -> addConstraintStatement(statement, keyword, value));
     }
 
     public void addChild(YangNode child) {
@@ -148,9 +148,37 @@ public final class YangNode {
         }
         for (Map.Entry<String, List<String>> entry : node.constraints.entrySet()) {
             for (String value : entry.getValue()) {
-                node.statement.addChildOrdered(new YangStatement(entry.getKey(), value, 0));
+                addConstraintStatement(node.statement, entry.getKey(), value);
             }
         }
+    }
+
+    private void addConstraintStatement(YangStatement owner, String keyword, String value) {
+        if ("range".equals(keyword)) {
+            typeStatement(owner).addChildOrdered(new YangStatement(keyword, value, 0));
+            return;
+        }
+        owner.addChildOrdered(new YangStatement(keyword, value, 0));
+    }
+
+    private void removeStatementConstraint(YangStatement owner, String keyword) {
+        owner.removeChildren(keyword);
+        if ("range".equals(keyword)) {
+            owner.children().stream()
+                    .filter(child -> "type".equals(child.keyword()))
+                    .forEach(child -> child.removeChildren(keyword));
+        }
+    }
+
+    private YangStatement typeStatement(YangStatement owner) {
+        return owner.children().stream()
+                .filter(child -> "type".equals(child.keyword()))
+                .findFirst()
+                .orElseGet(() -> {
+                    YangStatement type = new YangStatement("type", dataType, 0);
+                    owner.addChildOrdered(type);
+                    return type;
+                });
     }
 
     public String path() {

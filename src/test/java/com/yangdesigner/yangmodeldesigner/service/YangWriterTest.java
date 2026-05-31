@@ -149,6 +149,22 @@ class YangWriterTest {
     }
 
     @Test
+    void writesRangeInsideTypeStatement() {
+        YangNode module = new YangNode(YangNodeType.MODULE, "range-module");
+        YangNode leaf = new YangNode(YangNodeType.LEAF, "port");
+        leaf.setDataType("uint16");
+        leaf.addConstraint("range", "1..65535");
+        module.addChild(leaf);
+
+        String text = writer.write(new YangDocument(module, "", null));
+
+        String lineSeparator = System.lineSeparator();
+        assertTrue(text.contains("        type uint16 {" + lineSeparator
+                + "            range 1..65535;" + lineSeparator
+                + "        }"));
+    }
+
+    @Test
     void separatesAstNodesWithSingleBlankLine() {
         String source = """
                 module spacing {
@@ -170,7 +186,7 @@ class YangWriterTest {
         String text = writer.write(result.document());
         String lineSeparator = System.lineSeparator();
 
-        assertTrue(text.contains("prefix sp;" + lineSeparator + lineSeparator + "  container system {"));
-        assertTrue(text.contains("    }" + lineSeparator + lineSeparator + "    leaf domain {"));
+        assertTrue(text.contains("prefix sp;" + lineSeparator + lineSeparator + "    container system {"));
+        assertTrue(text.contains("        }" + lineSeparator + lineSeparator + "        leaf domain {"));
     }
 }

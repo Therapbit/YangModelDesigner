@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class YangWriter {
+    private static final String INDENT = "    ";
     private static final Set<String> NODE_STATEMENTS = Set.of(
             "module", "submodule", "container", "list", "leaf", "leaf-list",
             "choice", "case", "grouping", "uses", "augment", "rpc", "action",
@@ -76,14 +77,14 @@ public final class YangWriter {
         }
         writeConstraints(builder, node, indent + 1, List.of("config"));
         if (!node.dataType().isBlank()) {
-            statement(builder, indent + 1, "type", node.dataType());
+            writeType(builder, node, indent + 1);
         }
         if (!node.description().isBlank()) {
             statement(builder, indent + 1, "description", node.description());
         }
         writeConstraints(builder, node, indent + 1, List.of(
                 "when", "must", "key", "unique", "mandatory", "default",
-                "presence", "min-elements", "max-elements", "pattern", "range",
+                "presence", "min-elements", "max-elements", "pattern",
                 "length", "units", "base", "if-feature", "status", "reference",
                 "organization", "contact", "belongs-to", "revision-date",
                 "prefix", "value", "position"
@@ -112,6 +113,19 @@ public final class YangWriter {
                 statement(builder, indent, keyword, value);
             }
         }
+    }
+
+    private void writeType(StringBuilder builder, YangNode node, int indent) {
+        List<String> ranges = node.constraints().get("range");
+        if (ranges == null || ranges.isEmpty()) {
+            statement(builder, indent, "type", node.dataType());
+            return;
+        }
+        line(builder, indent, "type " + formatValue("type", node.dataType()) + " {");
+        for (String range : ranges) {
+            statement(builder, indent + 1, "range", range);
+        }
+        line(builder, indent, "}");
     }
 
     private boolean hasNonHeaderConstraints(YangNode node) {
@@ -143,7 +157,7 @@ public final class YangWriter {
     }
 
     private void line(StringBuilder builder, int indent, String text) {
-        builder.append("  ".repeat(indent)).append(text).append(System.lineSeparator());
+        builder.append(INDENT.repeat(indent)).append(text).append(System.lineSeparator());
     }
 
     private void blankLine(StringBuilder builder) {

@@ -1,5 +1,6 @@
 module com.yangdesigner.yangmodeldesigner {
     requires javafx.controls;
+    requires java.prefs;
     requires org.fxmisc.richtext;
     requires org.fxmisc.flowless;
 

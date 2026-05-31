@@ -1,0 +1,439 @@
+.modern-root {
+    -jb-bg: #f4f4f5;
+    -jb-panel: #ffffff;
+    -jb-panel-soft: #f8f8f9;
+    -jb-panel-strong: #ececef;
+    -jb-border: #d4d4d8;
+    -jb-border-strong: #b7b7bf;
+    -jb-text: #1f2328;
+    -jb-muted: #6f7782;
+    -jb-accent: #6b57ff;
+    -jb-accent-soft: rgba(107, 87, 255, 0.12);
+    -jb-green: #2e7d50;
+    -jb-yellow: #a36800;
+    -jb-purple: #8b4fd6;
+    -jb-blue: #3574f0;
+
+    -fx-font-family: "Inter", "Segoe UI", "Arial";
+    -fx-background-color:
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.12)),
+            linear-gradient(to bottom right, #f6f6f7, #ececef 54%, #f5f5f6);
+    -fx-text-fill: -jb-text;
+}
+
+.modern-root.modern-theme-dark {
+    -jb-bg: #1e1f22;
+    -jb-panel: #2b2d30;
+    -jb-panel-soft: #252629;
+    -jb-panel-strong: #303236;
+    -jb-border: #3f4147;
+    -jb-border-strong: #5a5d66;
+    -jb-text: #dfe1e5;
+    -jb-muted: #9ca3ad;
+    -jb-accent: #8b7dff;
+    -jb-accent-soft: rgba(139, 125, 255, 0.16);
+    -jb-green: #7bc99a;
+    -jb-yellow: #d5ad5c;
+    -jb-purple: #c6a7ff;
+    -jb-blue: #79a7f5;
+
+    -fx-background-color:
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.0)),
+            linear-gradient(to bottom right, #1e1f22, #232427 50%, #1c1d20);
+    -fx-text-fill: -jb-text;
+}
+
+.modern-root .menu-bar {
+    -fx-background-color: rgba(255, 255, 255, 0.84);
+    -fx-border-color: -jb-border;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 4 8 4 8;
+}
+
+.modern-root.modern-theme-dark .menu-bar {
+    -fx-background-color: rgba(43, 45, 48, 0.92);
+}
+
+.modern-root .menu,
+.modern-root .menu-item {
+    -fx-background-radius: 6;
+}
+
+.modern-root .menu:hover,
+.modern-root .menu:showing,
+.modern-root .menu-item:focused {
+    -fx-background-color: -jb-accent-soft;
+}
+
+.modern-root .menu .label,
+.modern-root .menu-item .label {
+    -fx-text-fill: -jb-text;
+    -fx-font-size: 12px;
+}
+
+.modern-root .modern-menu-icon {
+    -fx-alignment: center;
+    -fx-min-width: 20;
+    -fx-min-height: 20;
+    -fx-background-radius: 5;
+    -fx-background-color: -jb-panel-strong;
+    -fx-border-color: -jb-border;
+    -fx-border-radius: 5;
+    -fx-text-fill: -jb-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.modern-root .context-menu {
+    -fx-background-color: -jb-panel;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: -jb-border;
+    -fx-padding: 5;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.20), 18, 0.18, 0, 8);
+}
+
+.modern-root .split-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 10;
+}
+
+.modern-root .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 0 4 0 4;
+}
+
+.modern-root .tree-view,
+.modern-root .tab-pane,
+.modern-root .list-view,
+.modern-root .virtualized-scroll-pane {
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-border-color: -jb-border;
+    -fx-effect: dropshadow(gaussian, rgba(31, 35, 40, 0.10), 12, 0.16, 0, 5);
+}
+
+.modern-root.modern-theme-dark .tree-view,
+.modern-root.modern-theme-dark .tab-pane,
+.modern-root.modern-theme-dark .list-view,
+.modern-root.modern-theme-dark .virtualized-scroll-pane {
+    -fx-background-color: rgba(43, 45, 48, 0.82);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.34), 14, 0.18, 0, 6);
+}
+
+.modern-root .tree-view {
+    -fx-padding: 5;
+}
+
+.modern-root .tree-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 2 5 2 5;
+}
+
+.modern-root .tree-cell:selected {
+    -fx-background-color: -jb-accent-soft;
+    -fx-background-radius: 5;
+}
+
+.modern-root .tree-cell:filled:hover {
+    -fx-background-color: rgba(107, 114, 128, 0.10);
+    -fx-background-radius: 5;
+}
+
+.modern-root.modern-theme-dark .tree-cell:filled:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.07);
+}
+
+.modern-root .yang-tree-node {
+    -fx-alignment: center-left;
+    -fx-min-height: 25;
+}
+
+.modern-root .yang-tree-type-icon {
+    -fx-alignment: center;
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-font-family: "JetBrains Mono", "Segoe UI", "Arial";
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -jb-muted;
+}
+
+.modern-root .yang-tree-type-label {
+    -fx-text-fill: -jb-accent;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.modern-root .yang-tree-title {
+    -fx-text-fill: -jb-text;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+}
+
+.modern-root .yang-tree-type-module,
+.modern-root .yang-tree-type-submodule,
+.modern-root .yang-tree-type-rpc,
+.modern-root .yang-tree-type-action,
+.modern-root .yang-tree-type-typedef,
+.modern-root .yang-tree-type-identity {
+    -fx-text-fill: -jb-purple;
+}
+
+.modern-root .yang-tree-type-container,
+.modern-root .yang-tree-type-list,
+.modern-root .yang-tree-type-leaf,
+.modern-root .yang-tree-type-leaf-list {
+    -fx-text-fill: -jb-green;
+}
+
+.modern-root .yang-tree-type-input,
+.modern-root .yang-tree-type-output {
+    -fx-text-fill: -jb-blue;
+}
+
+.modern-root .yang-tree-type-notification,
+.modern-root .yang-tree-type-choice,
+.modern-root .yang-tree-type-case {
+    -fx-text-fill: -jb-yellow;
+}
+
+.modern-root .yang-tree-access {
+    -fx-alignment: center;
+    -fx-min-width: 36;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-color: -jb-border;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+    -fx-padding: 2 7 2 7;
+}
+
+.modern-root .yang-tree-access-rw {
+    -fx-background-color: rgba(46, 125, 80, 0.11);
+    -fx-text-fill: -jb-green;
+}
+
+.modern-root .yang-tree-access-ro {
+    -fx-background-color: rgba(107, 114, 128, 0.12);
+    -fx-text-fill: -jb-muted;
+}
+
+.modern-root .tab-header-area {
+    -fx-padding: 0 0 0 0;
+}
+
+.modern-root .tab-header-area .tab-header-background {
+    -fx-background-color: -jb-panel-soft;
+    -fx-background-radius: 7 7 0 0;
+    -fx-border-color: -jb-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+.modern-root .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-padding: 5 11 5 11;
+}
+
+.modern-root .tab:hover {
+    -fx-background-color: rgba(107, 114, 128, 0.10);
+}
+
+.modern-root .tab:selected {
+    -fx-background-color: -jb-panel;
+    -fx-border-color: -jb-accent;
+    -fx-border-width: 0 0 2 0;
+}
+
+.modern-root .tab .tab-label {
+    -fx-text-fill: -jb-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.modern-root .tab:selected .tab-label {
+    -fx-text-fill: -jb-text;
+}
+
+.modern-root .button {
+    -fx-background-color: -jb-panel-strong;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: -jb-border;
+    -fx-text-fill: -jb-text;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-padding: 6 12 6 12;
+}
+
+.modern-root .button:hover {
+    -fx-background-color: derive(-jb-panel-strong, -4%);
+    -fx-border-color: -jb-border-strong;
+}
+
+.modern-root .button:pressed {
+    -fx-background-color: -jb-accent-soft;
+    -fx-border-color: -jb-accent;
+}
+
+.modern-root .label {
+    -fx-text-fill: -jb-text;
+}
+
+.modern-root .text-field,
+.modern-root .text-area,
+.modern-root .combo-box-base {
+    -fx-background-color: -jb-panel;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: -jb-border;
+    -fx-padding: 5 7 5 7;
+}
+
+.modern-root .text-field:hover,
+.modern-root .text-area:hover,
+.modern-root .combo-box-base:hover {
+    -fx-border-color: -jb-border-strong;
+}
+
+.modern-root .text-field:focused,
+.modern-root .text-area:focused,
+.modern-root .combo-box-base:focused {
+    -fx-background-color: -jb-panel;
+    -fx-border-color: -jb-accent;
+    -fx-effect: dropshadow(gaussian, rgba(107, 87, 255, 0.16), 8, 0.18, 0, 0);
+}
+
+.modern-root .text-area .content {
+    -fx-background-color: -jb-panel;
+    -fx-background-radius: 6;
+}
+
+.modern-root .text-area:focused .content {
+    -fx-background-color: -jb-panel;
+}
+
+.modern-root .text-area .viewport {
+    -fx-background-color: transparent;
+}
+
+.modern-root .text-input {
+    -fx-text-fill: -jb-text;
+    -fx-prompt-text-fill: -jb-muted;
+    -fx-highlight-fill: -jb-accent-soft;
+    -fx-highlight-text-fill: -jb-text;
+}
+
+.modern-root .combo-box .list-cell {
+    -fx-text-fill: -jb-text;
+    -fx-background-color: transparent;
+}
+
+.modern-root .combo-box-popup .list-view {
+    -fx-background-color: -jb-panel;
+    -fx-border-color: -jb-border;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+}
+
+.modern-root .combo-box-popup .list-cell:hover,
+.modern-root .combo-box-popup .list-cell:selected {
+    -fx-background-color: -jb-accent-soft;
+}
+
+.modern-root .check-box {
+    -fx-text-fill: -jb-text;
+    -fx-font-size: 12px;
+}
+
+.modern-root .check-box .box {
+    -fx-background-color: -jb-panel;
+    -fx-background-radius: 4;
+    -fx-border-color: -jb-border-strong;
+    -fx-border-radius: 4;
+    -fx-padding: 2;
+}
+
+.modern-root .check-box:hover .box {
+    -fx-border-color: -jb-accent;
+}
+
+.modern-root .check-box:selected .box {
+    -fx-background-color: -jb-accent;
+    -fx-border-color: -jb-accent;
+}
+
+.modern-root .check-box:selected .mark {
+    -fx-background-color: white;
+}
+
+.modern-root .check-box:indeterminate .box {
+    -fx-background-color: -jb-panel-strong;
+    -fx-border-color: -jb-muted;
+}
+
+.modern-root .search-bar {
+    -fx-background-color: -jb-panel-soft;
+    -fx-border-color: -jb-border;
+    -fx-border-width: 1 0 0 0;
+}
+
+.modern-root .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -jb-text;
+    -fx-padding: 4 8 4 8;
+}
+
+.modern-root .list-cell:filled:hover,
+.modern-root .list-cell:selected {
+    -fx-background-color: -jb-accent-soft;
+}
+
+.modern-root .yang-code-area {
+    -fx-background-color: -jb-panel;
+}
+
+.modern-root.modern-theme-dark .yang-code-area {
+    -fx-background-color: #1e1f22;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text {
+    -fx-fill: #dfe1e5;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.keyword {
+    -fx-fill: #cf8e6d;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.type {
+    -fx-fill: #c77dbb;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.string {
+    -fx-fill: #6aab73;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.comment {
+    -fx-fill: #7a7e85;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.brace,
+.modern-root.modern-theme-dark .yang-code-area .text.semicolon {
+    -fx-fill: #b3ae60;
+}
+
+.modern-root.modern-theme-dark .yang-code-area .text.matching-brace {
+    -rtfx-background-color: #3d3a2b;
+    -fx-fill: #d6d1a0;
+    -fx-underline: true;
+}
+
+.modern-root.modern-theme-dark .lineno {
+    -fx-background-color: #242528;
+    -fx-text-fill: #7a7e85;
+}

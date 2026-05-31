@@ -85,6 +85,11 @@ public final class YangParser {
                 node.setDescription(childStatement.argument());
             } else if ("type".equals(childStatement.keyword())) {
                 node.setDataType(childStatement.argument());
+                for (YangStatement typeChild : childStatement.children()) {
+                    if ("range".equals(typeChild.keyword())) {
+                        node.addParsedConstraint(typeChild.keyword(), typeChild.argument());
+                    }
+                }
             } else if (isConstraint(childStatement.keyword(), type)) {
                 node.addParsedConstraint(childStatement.keyword(), childStatement.argument());
             }

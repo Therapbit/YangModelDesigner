@@ -48,3 +48,48 @@
     -fx-fill: #e11d48;
     -fx-font-weight: bold;
 }
+
+.tri-state-check {
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+}
+
+.tri-state-indicator {
+    -fx-alignment: center;
+    -fx-min-width: 16;
+    -fx-min-height: 16;
+    -fx-pref-width: 16;
+    -fx-pref-height: 16;
+    -fx-max-width: 16;
+    -fx-max-height: 16;
+    -fx-background-radius: 3;
+    -fx-border-radius: 3;
+    -fx-border-width: 1;
+    -fx-border-color: #94a3b8;
+    -fx-background-color: transparent;
+    -fx-text-fill: #0f172a;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.tri-state-caption {
+    -fx-text-fill: #0f172a;
+}
+
+.tri-state-check.tri-state-true .tri-state-indicator {
+    -fx-background-color: #38bdf8;
+    -fx-border-color: #0284c7;
+    -fx-text-fill: #ffffff;
+}
+
+.tri-state-check.tri-state-unset .tri-state-indicator {
+    -fx-background-color: rgba(56, 189, 248, 0.08);
+    -fx-border-color: #0284c7;
+    -fx-text-fill: #0284c7;
+}
+
+.tri-state-check.tri-state-false .tri-state-indicator {
+    -fx-background-color: transparent;
+    -fx-text-fill: transparent;
+}

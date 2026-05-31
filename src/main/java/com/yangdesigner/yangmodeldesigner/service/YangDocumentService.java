@@ -16,18 +16,18 @@ public final class YangDocumentService {
     public String newModuleTemplate() {
         return """
                 module example-module {
-                  yang-version 1.1;
-                  namespace "urn:example:module";
-                  prefix ex;
+                    yang-version 1.1;
+                    namespace "urn:example:module";
+                    prefix ex;
 
-                  container system {
-                    description "System settings.";
+                    container system {
+                        description "System settings.";
 
-                    leaf hostname {
-                      type string;
-                      description "Device host name.";
+                        leaf hostname {
+                            type string;
+                            description "Device host name.";
+                        }
                     }
-                  }
                 }
                 """;
     }
