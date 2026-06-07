@@ -26,8 +26,12 @@ public final class YangDocumentAnalysisController {
     }
 
     public AnalysisResult validate(String text, Path file) {
+        return validate(text, file, false);
+    }
+
+    public AnalysisResult validate(String text, Path file, boolean ietfMode) {
         YangParseResult result = documentService.parse(text, file);
-        List<UiMessage> messages = validator.validate(text, file).stream()
+        List<UiMessage> messages = validator.validate(text, file, ietfMode).stream()
                 .map(this::formatIssue)
                 .collect(Collectors.toCollection(java.util.ArrayList::new));
         messages.addAll(0, parseMessages(result));

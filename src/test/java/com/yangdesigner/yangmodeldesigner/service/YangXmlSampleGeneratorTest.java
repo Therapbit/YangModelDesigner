@@ -5,6 +5,8 @@ import com.yangdesigner.yangmodeldesigner.model.YangNode;
 import com.yangdesigner.yangmodeldesigner.model.YangNodeType;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class YangXmlSampleGeneratorTest {
@@ -48,5 +50,31 @@ class YangXmlSampleGeneratorTest {
 
         assertTrue(xml.contains("    <interface>"));
         assertTrue(xml.contains("        <mtu>1</mtu>"));
+    }
+
+    @Test
+    void expandsPrefixedUsesFromImportedDocument() {
+        YangNode module = new YangNode(YangNodeType.MODULE, "main-module");
+        YangNode importNode = new YangNode(YangNodeType.IMPORT, "common-module");
+        importNode.addConstraint("prefix", "cmn");
+        YangNode container = new YangNode(YangNodeType.CONTAINER, "system");
+        container.addChild(new YangNode(YangNodeType.USES, "cmn:common-settings"));
+        module.addChild(importNode);
+        module.addChild(container);
+
+        YangNode importedModule = new YangNode(YangNodeType.MODULE, "common-module");
+        YangNode grouping = new YangNode(YangNodeType.GROUPING, "common-settings");
+        YangNode hostname = new YangNode(YangNodeType.LEAF, "hostname");
+        hostname.setDataType("string");
+        grouping.addChild(hostname);
+        importedModule.addChild(grouping);
+
+        String xml = generator.generate(
+                new YangDocument(module, "", null),
+                List.of(new YangDocument(importedModule, "", null))
+        );
+
+        assertTrue(xml.contains("    <system>"));
+        assertTrue(xml.contains("        <hostname>sample</hostname>"));
     }
 }

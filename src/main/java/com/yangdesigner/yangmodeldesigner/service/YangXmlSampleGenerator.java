@@ -22,8 +22,12 @@ public final class YangXmlSampleGenerator {
     );
 
     public String generate(YangDocument document) {
+        return generate(document, List.of());
+    }
+
+    public String generate(YangDocument document, List<YangDocument> relatedDocuments) {
         StringBuilder builder = new StringBuilder();
-        Map<String, YangNode> groupings = collectGroupings(document.root());
+        Map<String, YangNode> groupings = collectGroupings(document, relatedDocuments);
         builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>").append(System.lineSeparator());
         String namespace = firstConstraint(document.root(), "namespace");
         if (namespace.isBlank()) {
@@ -122,19 +126,58 @@ public final class YangXmlSampleGenerator {
         return false;
     }
 
-    private Map<String, YangNode> collectGroupings(YangNode root) {
+    private Map<String, YangNode> collectGroupings(YangDocument document, List<YangDocument> relatedDocuments) {
         Map<String, YangNode> groupings = new LinkedHashMap<>();
-        collectGroupings(root, groupings);
+        collectLocalGroupings(document.root(), groupings);
+        Map<String, YangDocument> documentsByModule = documentsByModule(relatedDocuments);
+        for (YangNode child : document.root().children()) {
+            if (child.type() == YangNodeType.IMPORT) {
+                String prefix = firstConstraint(child, "prefix");
+                YangDocument imported = documentsByModule.get(cleanIdentifier(child.name()));
+                if (imported != null) {
+                    collectImportedGroupings(imported.root(), prefix, groupings);
+                }
+            } else if (child.type() == YangNodeType.INCLUDE) {
+                YangDocument included = documentsByModule.get(cleanIdentifier(child.name()));
+                if (included != null) {
+                    collectLocalGroupings(included.root(), groupings);
+                }
+            }
+        }
+        for (YangDocument relatedDocument : relatedDocuments) {
+            collectImportedGroupings(relatedDocument.root(), firstConstraint(relatedDocument.root(), "prefix"), groupings);
+        }
         return groupings;
     }
 
-    private void collectGroupings(YangNode node, Map<String, YangNode> groupings) {
+    private Map<String, YangDocument> documentsByModule(List<YangDocument> documents) {
+        Map<String, YangDocument> result = new LinkedHashMap<>();
+        for (YangDocument document : documents) {
+            result.putIfAbsent(cleanIdentifier(document.root().name()), document);
+        }
+        return result;
+    }
+
+    private void collectLocalGroupings(YangNode node, Map<String, YangNode> groupings) {
         if (node.type() == YangNodeType.GROUPING && !node.name().isBlank()) {
             groupings.putIfAbsent(node.name(), node);
             groupings.putIfAbsent(unprefixedName(node.name()), node);
         }
         for (YangNode child : node.children()) {
-            collectGroupings(child, groupings);
+            collectLocalGroupings(child, groupings);
+        }
+    }
+
+    private void collectImportedGroupings(YangNode node, String prefix, Map<String, YangNode> groupings) {
+        if (node.type() == YangNodeType.GROUPING && !node.name().isBlank()) {
+            String name = cleanIdentifier(node.name());
+            if (!prefix.isBlank()) {
+                groupings.putIfAbsent(prefix + ":" + name, node);
+            }
+            groupings.putIfAbsent(name, node);
+        }
+        for (YangNode child : node.children()) {
+            collectImportedGroupings(child, prefix, groupings);
         }
     }
 
@@ -142,6 +185,15 @@ public final class YangXmlSampleGenerator {
         String clean = name == null ? "" : name.strip();
         int separator = clean.indexOf(':');
         return separator >= 0 ? clean.substring(separator + 1) : clean;
+    }
+
+    private String cleanIdentifier(String value) {
+        String clean = value == null ? "" : value.strip();
+        if ((clean.startsWith("\"") && clean.endsWith("\""))
+                || (clean.startsWith("'") && clean.endsWith("'"))) {
+            return clean.substring(1, clean.length() - 1);
+        }
+        return clean;
     }
 
     private String sampleValue(String dataType, Map<String, List<String>> constraints) {

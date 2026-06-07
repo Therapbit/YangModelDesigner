@@ -26,6 +26,7 @@ com\yangdesigner\yangmodeldesigner\ui\controller\YangNodeController.class
 com\yangdesigner\yangmodeldesigner\app\BaseYangModelDesignerApplication$ViewHandle.class
 com\yangdesigner\yangmodeldesigner\model\YangDocument.class
 com\yangdesigner\yangmodeldesigner\ui\controller\YangTreeController.class
+com\yangdesigner\yangmodeldesigner\ui\ClassicMainView$MessageCell.class
 com\yangdesigner\yangmodeldesigner\app\BaseYangModelDesignerApplication.class
 com\yangdesigner\yangmodeldesigner\model\YangNodeType.class
 com\yangdesigner\yangmodeldesigner\parser\YangParser$Token.class
@@ -33,6 +34,7 @@ com\yangdesigner\yangmodeldesigner\ui\controller\YangDocumentController.class
 module-info.class
 com\yangdesigner\yangmodeldesigner\ui\ModernMainView.class
 com\yangdesigner\yangmodeldesigner\ui\controller\YangNodeController$NodeEditData.class
+com\yangdesigner\yangmodeldesigner\ui\editor\EditorTextSupport$BracePair.class
 com\yangdesigner\yangmodeldesigner\service\YangWriter.class
 com\yangdesigner\yangmodeldesigner\validation\PyangValidator.class
 com\yangdesigner\yangmodeldesigner\ui\ClassicMainView$2.class
@@ -40,6 +42,7 @@ com\yangdesigner\yangmodeldesigner\ui\ClassicMainView.class
 com\yangdesigner\yangmodeldesigner\model\YangNode.class
 com\yangdesigner\yangmodeldesigner\ui\ClassicMainView$TriStateCheckBox.class
 com\yangdesigner\yangmodeldesigner\ui\controller\YangNodeController$AddChildResult.class
+com\yangdesigner\yangmodeldesigner\ui\editor\EditorTextSupport$CommentToggle.class
 com\yangdesigner\yangmodeldesigner\ui\editor\YangSyntaxHighlighter.class
 com\yangdesigner\yangmodeldesigner\ui\editor\YangCompletionSupport.class
 com\yangdesigner\yangmodeldesigner\ui\editor\EditorTextSupport$IndentedNewLine.class

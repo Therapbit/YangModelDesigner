@@ -6,6 +6,7 @@ import com.yangdesigner.yangmodeldesigner.service.YangXmlSampleGenerator;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 public final class YangDocumentController {
     private final YangDocumentService documentService;
@@ -31,8 +32,13 @@ public final class YangDocumentController {
     }
 
     public Path exportXml(Path file, YangDocument document) throws IOException {
+        return exportXml(file, document, null);
+    }
+
+    public Path exportXml(Path file, YangDocument document, Path currentFile) throws IOException {
         Path target = ensureXmlExtension(file);
-        documentService.write(target, xmlSampleGenerator.generate(document));
+        List<YangDocument> relatedDocuments = documentService.readRelatedDocuments(document, currentFile);
+        documentService.write(target, xmlSampleGenerator.generate(document, relatedDocuments));
         return target;
     }
 

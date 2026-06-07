@@ -109,7 +109,7 @@
     -fx-border-radius: 10;
     -fx-border-color: -ctk-border;
     -fx-padding: 7;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 22, 0.22, 0, 8);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 10, 0.16, 0, 3);
 }
 
 .modern-root.modern-theme-light .context-menu {
@@ -135,7 +135,7 @@
     -fx-background-radius: 4;
     -fx-border-radius: 4;
     -fx-border-color: -ctk-border;
-    -fx-effect: dropshadow(gaussian, rgba(41, 136, 255, 0.16), 24, 0.18, 0, 8);
+    -fx-effect: dropshadow(gaussian, rgba(41, 136, 255, 0.10), 8, 0.12, 0, 2);
 }
 
 .modern-root .properties-scroll-pane,
@@ -223,25 +223,42 @@
 .modern-root .yang-tree-type-rpc,
 .modern-root .yang-tree-type-action,
 .modern-root .yang-tree-type-typedef,
-.modern-root .yang-tree-type-identity {
+.modern-root .yang-tree-type-identity,
+.modern-root .yang-tree-type-extension,
+.modern-root .yang-tree-type-feature {
     -fx-text-fill: -ctk-purple;
 }
 
 .modern-root .yang-tree-type-container,
 .modern-root .yang-tree-type-list,
 .modern-root .yang-tree-type-leaf,
-.modern-root .yang-tree-type-leaf-list {
+.modern-root .yang-tree-type-leaf-list,
+.modern-root .yang-tree-type-anydata,
+.modern-root .yang-tree-type-anyxml,
+.modern-root .yang-tree-type-enum,
+.modern-root .yang-tree-type-bit {
     -fx-text-fill: -ctk-green;
 }
 
+.modern-root .yang-tree-type-import,
+.modern-root .yang-tree-type-include,
+.modern-root .yang-tree-type-revision,
+.modern-root .yang-tree-type-grouping,
+.modern-root .yang-tree-type-uses {
+    -fx-text-fill: -ctk-cyan;
+}
+
 .modern-root .yang-tree-type-input,
-.modern-root .yang-tree-type-output {
+.modern-root .yang-tree-type-output,
+.modern-root .yang-tree-type-augment {
     -fx-text-fill: -ctk-accent-2;
 }
 
 .modern-root .yang-tree-type-notification,
 .modern-root .yang-tree-type-choice,
-.modern-root .yang-tree-type-case {
+.modern-root .yang-tree-type-case,
+.modern-root .yang-tree-type-deviation,
+.modern-root .yang-tree-type-deviate {
     -fx-text-fill: -ctk-yellow;
 }
 
@@ -317,7 +334,7 @@
     -fx-font-size: 12px;
     -fx-font-weight: 800;
     -fx-padding: 7 13 7 13;
-    -fx-effect: dropshadow(gaussian, rgba(35, 143, 255, 0.28), 12, 0.18, 0, 3);
+    -fx-effect: dropshadow(gaussian, rgba(35, 143, 255, 0.18), 6, 0.12, 0, 2);
 }
 
 .modern-root .button:hover {
@@ -359,7 +376,7 @@
 .modern-root .combo-box-base:focused {
     -fx-background-color: rgba(43, 68, 101, 0.86);
     -fx-border-color: -ctk-accent-2;
-    -fx-effect: dropshadow(gaussian, -ctk-accent-glow, 14, 0.28, 0, 0);
+    -fx-effect: dropshadow(gaussian, -ctk-accent-glow, 6, 0.16, 0, 0);
 }
 
 .modern-root.modern-theme-light .text-field:focused,

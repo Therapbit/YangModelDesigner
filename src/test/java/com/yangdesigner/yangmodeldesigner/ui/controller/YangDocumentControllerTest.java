@@ -58,4 +58,44 @@ class YangDocumentControllerTest {
         assertEquals("sample.xml", saved.getFileName().toString());
         assertTrue(Files.readString(saved).contains("<enabled>true</enabled>"));
     }
+
+    @Test
+    void exportsXmlWithGroupingsFromImportedYangFile() throws Exception {
+        Path common = tempDir.resolve("common-module.yang");
+        Files.writeString(common, """
+                module common-module {
+                    yang-version 1.1;
+                    namespace "urn:common";
+                    prefix cmn;
+
+                    grouping common-settings {
+                        leaf hostname {
+                            type string;
+                        }
+                    }
+                }
+                """);
+        Path main = tempDir.resolve("main-module.yang");
+        String source = """
+                module main-module {
+                    yang-version 1.1;
+                    namespace "urn:main";
+                    prefix main;
+
+                    import common-module {
+                        prefix cmn;
+                    }
+
+                    container system {
+                        uses cmn:common-settings;
+                    }
+                }
+                """;
+        Files.writeString(main, source);
+        YangDocument document = new YangDocumentService().parse(source, main).document();
+
+        Path saved = controller.exportXml(tempDir.resolve("main-module.xml"), document, main);
+
+        assertTrue(Files.readString(saved).contains("<hostname>sample</hostname>"));
+    }
 }

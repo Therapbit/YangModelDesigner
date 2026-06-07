@@ -24,6 +24,10 @@ public final class PyangValidator {
     );
 
     public List<ValidationIssue> validate(String source, Path currentFile) {
+        return validate(source, currentFile, false);
+    }
+
+    public List<ValidationIssue> validate(String source, Path currentFile, boolean ietfMode) {
         try {
             Optional<List<String>> command = availableCommand();
             if (command.isEmpty()) {
@@ -32,7 +36,7 @@ public final class PyangValidator {
                         "pyang не найден. Установите его командой: python -m pip install pyang"
                 ));
             }
-            return runPyang(command.get(), source, currentFile);
+            return runPyang(command.get(), source, currentFile, ietfMode);
         } catch (IOException ex) {
             return List.of(new ValidationIssue(
                     ValidationIssue.Severity.ERROR,
@@ -63,15 +67,12 @@ public final class PyangValidator {
         return Optional.empty();
     }
 
-    private List<ValidationIssue> runPyang(List<String> command, String source, Path currentFile)
+    private List<ValidationIssue> runPyang(List<String> command, String source, Path currentFile, boolean ietfMode)
             throws IOException, InterruptedException {
         Path tempFile = temporaryYangFile(source, currentFile);
         try {
-            List<String> args = new ArrayList<>(command);
             Path importDirectory = importDirectory(currentFile, tempFile);
-            args.add("-p");
-            args.add(importDirectory.toString());
-            args.add(tempFile.toString());
+            List<String> args = pyangArguments(command, importDirectory, tempFile, ietfMode);
             ProcessResult result = execute(args, importDirectory);
             List<ValidationIssue> issues = parseIssues(result.output());
             if (issues.isEmpty() && result.exitCode() != 0) {
@@ -84,6 +85,17 @@ public final class PyangValidator {
         } finally {
             Files.deleteIfExists(tempFile);
         }
+    }
+
+    List<String> pyangArguments(List<String> command, Path importDirectory, Path file, boolean ietfMode) {
+        List<String> args = new ArrayList<>(command);
+        if (ietfMode) {
+            args.add("--ietf");
+        }
+        args.add("-p");
+        args.add(importDirectory.toString());
+        args.add(file.toString());
+        return args;
     }
 
     private Path temporaryYangFile(String source, Path currentFile) throws IOException {
@@ -132,7 +144,8 @@ public final class PyangValidator {
                     ? ValidationIssue.Severity.WARNING
                     : ValidationIssue.Severity.ERROR;
             int lineNumber = Integer.parseInt(matcher.group("line"));
-            issues.add(new ValidationIssue(severity, "Строка " + lineNumber + ": " + matcher.group("message"), lineNumber, ""));
+            String fileName = Path.of(matcher.group("file")).getFileName().toString();
+            issues.add(new ValidationIssue(severity, "Файл " + fileName + ", строка " + lineNumber + ": " + matcher.group("message"), lineNumber, ""));
         }
         return issues;
     }

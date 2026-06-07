@@ -24,6 +24,7 @@ import com.yangdesigner.yangmodeldesigner.validation.PyangValidator;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Node;
@@ -31,10 +32,12 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -47,6 +50,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -60,6 +65,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
@@ -72,6 +78,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.prefs.Preferences;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -80,7 +87,9 @@ public class ClassicMainView {
     private static final int DEFAULT_EDITOR_FONT_SIZE = 13;
     private static final int MIN_EDITOR_FONT_SIZE = 9;
     private static final int MAX_EDITOR_FONT_SIZE = 32;
+    private static final String PREF_PYANG_IETF = "pyang.ietf";
     private final Stage stage;
+    private final Preferences preferences = Preferences.userNodeForPackage(ClassicMainView.class);
     private final YangDocumentService documentService = new YangDocumentService();
     private final YangXmlSampleGenerator xmlSampleGenerator = new YangXmlSampleGenerator();
     private final PyangValidator validator = new PyangValidator();
@@ -96,8 +105,16 @@ public class ClassicMainView {
     private final BorderPane root = new BorderPane();
     private final TreeView<YangNode> nodeTree = new TreeView<>();
     private final BorderPane editorPane = new BorderPane();
+    private final BorderPane primaryEditorPane = new BorderPane();
     private final TabPane fileTabs = new TabPane();
+    private final TabPane secondaryFileTabs = new TabPane();
+    private final TabPane propertiesTabs = new TabPane();
     private final CodeArea editor = new CodeArea();
+    private final CodeArea splitEditor = new CodeArea();
+    private final VirtualizedScrollPane<CodeArea> primaryEditorScroll = new VirtualizedScrollPane<>(editor);
+    private final VirtualizedScrollPane<CodeArea> splitEditorScroll = new VirtualizedScrollPane<>(splitEditor);
+    private final BorderPane splitEditorPane = new BorderPane();
+    private final SplitPane editorSplitPane = new SplitPane();
     private final Popup completionPopup = new Popup();
     private final ListView<String> completionList = new ListView<>();
     private final HBox searchBar = new HBox(8);
@@ -124,9 +141,13 @@ public class ClassicMainView {
     private final ListView<UiMessage> messages = new ListView<>();
     private final PauseTransition parseDelay = new PauseTransition(Duration.millis(650));
     private final PauseTransition autoSaveDelay = new PauseTransition(Duration.seconds(2));
+    private final PauseTransition highlightDelay = new PauseTransition(Duration.millis(55));
     private URL editorCss;
     private final YangEditorSessionManager sessionManager = new YangEditorSessionManager();
+    private final YangEditorSessionManager secondarySessionManager = new YangEditorSessionManager();
     private final Map<YangEditorSession, Tab> sessionTabs = new HashMap<>();
+    private final Map<YangEditorSession, Tab> secondarySessionTabs = new HashMap<>();
+    private SplitPane workArea;
     private Path currentFile;
     private YangDocument currentDocument;
     private YangNode selectedNode;
@@ -134,12 +155,26 @@ public class ClassicMainView {
     private boolean restoringTree;
     private boolean dirty;
     private boolean updatingEditor;
+    private boolean applyingSessionHistory;
     private boolean acceptingCompletion;
     private boolean selectingTextWithMouse;
+    private boolean switchingSecondarySessions;
+    private boolean editorSplitVisible;
+    private boolean treePaneVisible = true;
+    private boolean propertiesPaneVisible = true;
+    private boolean pyangIetfMode;
+    private double treeDividerPosition = 0.24;
+    private double propertiesDividerPosition = 0.70;
     private int editorFontSize = DEFAULT_EDITOR_FONT_SIZE;
+    private CodeArea activeEditor = editor;
+    private String lastPrimaryHighlightText = null;
+    private String lastSplitHighlightText = null;
+    private int lastPrimaryHighlightCaret = Integer.MIN_VALUE;
+    private int lastSplitHighlightCaret = Integer.MIN_VALUE;
 
     public ClassicMainView(Stage stage) {
         this.stage = stage;
+        pyangIetfMode = preferences.getBoolean(PREF_PYANG_IETF, false);
         configureLayout();
         configureActions();
         createNewDocument();
@@ -150,7 +185,8 @@ public class ClassicMainView {
     }
 
     public void refreshEditorHighlighting() {
-        highlightEditor();
+        resetHighlightCache();
+        highlightEditorNow();
     }
 
     public Path currentFile() {
@@ -181,19 +217,24 @@ public class ClassicMainView {
     private void configureLayout() {
         root.setTop(menuBar());
 
-        editor.setWrapText(false);
-        editor.getStyleClass().add("yang-code-area");
-        editor.setParagraphGraphicFactory(LineNumberFactory.get(editor));
+        configureCodeEditor(editor);
+        configureCodeEditor(splitEditor);
         editorCss = ClassicMainView.class.getResource("/com/yangdesigner/yangmodeldesigner/yang-editor.css");
         if (editorCss != null) {
             editor.getStylesheets().add(editorCss.toExternalForm());
+            splitEditor.getStylesheets().add(editorCss.toExternalForm());
             root.getStylesheets().add(editorCss.toExternalForm());
         }
         configureSearchBar();
         configureFileTabs();
+        configureSecondaryFileTabs();
         configureCompletionPopup();
-        editorPane.setTop(fileTabs);
-        editorPane.setCenter(new VirtualizedScrollPane<>(editor));
+        primaryEditorPane.setTop(fileTabs);
+        primaryEditorPane.setCenter(primaryEditorScroll);
+        splitEditorPane.setTop(secondaryFileTabs);
+        splitEditorPane.setCenter(splitEditorScroll);
+        editorSplitPane.setDividerPositions(0.5);
+        refreshEditorSplitLayout();
 
         nodeTree.setShowRoot(true);
         nodeTree.setMinWidth(240);
@@ -211,12 +252,23 @@ public class ClassicMainView {
             }
         });
 
-        SplitPane workArea = new SplitPane(nodeTree, editorPane, propertiesPane());
-        workArea.setDividerPositions(0.24, 0.70);
-        root.setCenter(workArea);
+        configurePropertiesPane();
+        workArea = new SplitPane();
+        refreshWorkAreaLayout();
 
+        messages.setCellFactory(ignored -> new MessageCell());
+        messages.setMinHeight(70);
         messages.setPrefHeight(130);
-        root.setBottom(messages);
+        SplitPane verticalArea = new SplitPane(workArea, messages);
+        verticalArea.setOrientation(Orientation.VERTICAL);
+        verticalArea.setDividerPositions(0.82);
+        root.setCenter(verticalArea);
+    }
+
+    private void configureCodeEditor(CodeArea codeEditor) {
+        codeEditor.setWrapText(false);
+        codeEditor.getStyleClass().add("yang-code-area");
+        codeEditor.setParagraphGraphicFactory(LineNumberFactory.get(codeEditor));
     }
 
     private MenuBar menuBar() {
@@ -230,10 +282,14 @@ public class ClassicMainView {
         MenuItem find = item("Найти...", "Shortcut+F", this::showFindDialog);
         MenuItem replace = item("Заменить...", "Shortcut+H", this::showReplaceDialog);
         MenuItem format = item("Форматировать", "Shortcut+Shift+L", this::formatDocument);
+        CheckMenuItem showTree = checkItem("Показать дерево", "Shortcut+Alt+DIGIT1", true, this::toggleTreePane);
+        CheckMenuItem showProperties = checkItem("Показать правую панель", "Shortcut+Alt+DIGIT2", true, this::togglePropertiesPane);
+        CheckMenuItem splitEditorItem = checkItem("Разделить редактор", "Shortcut+Alt+S", false, this::toggleEditorSplit);
         MenuItem zoomIn = item("Увеличить масштаб", "Shortcut+PLUS", this::zoomEditorIn);
         MenuItem zoomOut = item("Уменьшить масштаб", "Shortcut+MINUS", this::zoomEditorOut);
         MenuItem resetZoom = item("Сбросить масштаб", "Shortcut+0", this::resetEditorZoom);
         MenuItem validate = item("Проверить", "Shortcut+R", this::validateDocument);
+        CheckMenuItem pyangIetf = checkItem("pyang --ietf", "Shortcut+Alt+I", pyangIetfMode, this::togglePyangIetfMode);
         MenuItem instruction = item("Инструкция", "F1", this::showInstruction);
 
         Menu file = new Menu("Файл");
@@ -243,10 +299,10 @@ public class ClassicMainView {
         edit.getItems().addAll(find, replace, new SeparatorMenuItem(), format);
 
         Menu view = new Menu("Вид");
-        view.getItems().addAll(zoomIn, zoomOut, resetZoom);
+        view.getItems().addAll(showTree, showProperties, splitEditorItem, new SeparatorMenuItem(), zoomIn, zoomOut, resetZoom);
 
         Menu tools = new Menu("Инструменты");
-        tools.getItems().add(validate);
+        tools.getItems().addAll(validate, new SeparatorMenuItem(), pyangIetf);
 
         Menu help = new Menu("Помощь");
         help.getItems().add(instruction);
@@ -259,6 +315,110 @@ public class ClassicMainView {
         item.setAccelerator(KeyCombination.keyCombination(shortcut));
         item.setOnAction(event -> action.run());
         return item;
+    }
+
+    private CheckMenuItem checkItem(String text, String shortcut, boolean selected, Runnable action) {
+        CheckMenuItem item = new CheckMenuItem(text);
+        item.setSelected(selected);
+        item.setAccelerator(KeyCombination.keyCombination(shortcut));
+        item.setOnAction(event -> action.run());
+        return item;
+    }
+
+    private void toggleTreePane() {
+        treePaneVisible = !treePaneVisible;
+        refreshWorkAreaLayout();
+    }
+
+    private void togglePropertiesPane() {
+        propertiesPaneVisible = !propertiesPaneVisible;
+        refreshWorkAreaLayout();
+    }
+
+    private void toggleEditorSplit() {
+        editorSplitVisible = !editorSplitVisible;
+        refreshEditorSplitLayout();
+    }
+
+    private void refreshEditorSplitLayout() {
+        if (editorSplitVisible) {
+            ensureSecondarySessionSelected();
+            editorPane.setCenter(null);
+            editorSplitPane.getItems().setAll(primaryEditorPane, splitEditorPane);
+            editorPane.setCenter(editorSplitPane);
+            editorSplitPane.setDividerPositions(0.5);
+        } else {
+            syncEditorSession(splitEditor, secondarySessionManager.currentSession());
+            if (activeEditor == splitEditor) {
+                activeEditor = editor;
+            }
+            editorSplitPane.getItems().clear();
+            editorPane.setCenter(primaryEditorPane);
+        }
+        highlightEditor();
+    }
+
+    private void ensureSecondarySessionSelected() {
+        YangEditorSession current = secondarySessionManager.currentSession();
+        if (current != null) {
+            switchSecondaryToSession(current);
+            selectSecondaryTab(current);
+            return;
+        }
+        addSecondarySession(secondarySessionManager.createUntitled(documentService.newModuleTemplate()));
+    }
+
+    private void selectSecondaryTab(YangEditorSession session) {
+        Tab tab = secondarySessionTabs.get(session);
+        if (tab == null) {
+            return;
+        }
+        switchingSecondarySessions = true;
+        secondaryFileTabs.getSelectionModel().select(tab);
+        switchingSecondarySessions = false;
+    }
+
+    private void togglePyangIetfMode() {
+        pyangIetfMode = !pyangIetfMode;
+        preferences.putBoolean(PREF_PYANG_IETF, pyangIetfMode);
+    }
+
+    private void refreshWorkAreaLayout() {
+        if (workArea == null) {
+            return;
+        }
+        captureWorkAreaDividers();
+        workArea.getItems().clear();
+        if (treePaneVisible) {
+            workArea.getItems().add(nodeTree);
+        }
+        workArea.getItems().add(editorPane);
+        if (propertiesPaneVisible) {
+            workArea.getItems().add(propertiesTabs);
+        }
+        restoreWorkAreaDividers();
+    }
+
+    private void captureWorkAreaDividers() {
+        double[] positions = workArea.getDividerPositions();
+        if (treePaneVisible && propertiesPaneVisible && positions.length >= 2) {
+            treeDividerPosition = positions[0];
+            propertiesDividerPosition = positions[1];
+        } else if (treePaneVisible && positions.length >= 1) {
+            treeDividerPosition = positions[0];
+        } else if (propertiesPaneVisible && positions.length >= 1) {
+            propertiesDividerPosition = positions[0];
+        }
+    }
+
+    private void restoreWorkAreaDividers() {
+        if (treePaneVisible && propertiesPaneVisible) {
+            workArea.setDividerPositions(treeDividerPosition, propertiesDividerPosition);
+        } else if (treePaneVisible) {
+            workArea.setDividerPositions(treeDividerPosition);
+        } else if (propertiesPaneVisible) {
+            workArea.setDividerPositions(propertiesDividerPosition);
+        }
     }
 
     private void configureSearchBar() {
@@ -305,12 +465,23 @@ public class ClassicMainView {
         });
     }
 
+    private void configureSecondaryFileTabs() {
+        secondaryFileTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+        secondaryFileTabs.setMinHeight(30);
+        secondaryFileTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) -> {
+            if (switchingSecondarySessions || newTab == null) {
+                return;
+            }
+            switchSecondaryToSession(sessionFor(newTab));
+        });
+    }
+
     private void configureCompletionPopup() {
         completionList.setPrefWidth(260);
         completionList.setPrefHeight(180);
         completionList.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (handleCompletionNavigation(event)) {
-                editor.requestFocus();
+                activeEditor.requestFocus();
             }
         });
         completionList.setOnMouseClicked(event -> {
@@ -342,11 +513,38 @@ public class ClassicMainView {
         selectSession(session);
     }
 
+    private void addSecondarySession(YangEditorSession session) {
+        Tab tab = new Tab(session.displayName());
+        tab.setUserData(session);
+        secondarySessionTabs.put(session, tab);
+        secondarySessionManager.add(session);
+        tab.setOnCloseRequest(event -> {
+            if (secondarySessionManager.size() == 1) {
+                event.consume();
+            } else if (session == secondarySessionManager.currentSession()) {
+                syncEditorSession(splitEditor, session);
+            }
+        });
+        tab.setOnClosed(event -> {
+            secondarySessionManager.remove(session);
+            secondarySessionTabs.remove(session);
+        });
+        secondaryFileTabs.getTabs().add(tab);
+        selectSecondarySession(session);
+    }
+
     private void selectSession(YangEditorSession session) {
         switchingSessions = true;
         fileTabs.getSelectionModel().select(sessionTabs.get(session));
         switchingSessions = false;
         switchToSession(session);
+    }
+
+    private void selectSecondarySession(YangEditorSession session) {
+        switchingSecondarySessions = true;
+        secondaryFileTabs.getSelectionModel().select(secondarySessionTabs.get(session));
+        switchingSecondarySessions = false;
+        switchSecondaryToSession(session);
     }
 
     private void removeCleanUntitledSession(YangEditorSession session) {
@@ -356,6 +554,10 @@ public class ClassicMainView {
         Tab tab = sessionTabs.remove(session);
         if (tab != null) {
             fileTabs.getTabs().remove(tab);
+        }
+        Tab secondaryTab = secondarySessionTabs.remove(session);
+        if (secondaryTab != null) {
+            secondaryFileTabs.getTabs().remove(secondaryTab);
         }
         sessionManager.remove(session);
     }
@@ -368,8 +570,11 @@ public class ClassicMainView {
         sessionManager.select(session);
         currentFile = session.file();
         dirty = session.isDirty();
+        activeEditor = editor;
         updatingEditor = true;
         editor.replaceText(session.text());
+        resetHighlightCache();
+        clearEditorUndoHistory(editor);
         updatingEditor = false;
         YangTreeState treeState = session.treeState() == null ? YangTreeState.empty() : session.treeState();
         YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(editor.getText(), currentFile);
@@ -377,6 +582,24 @@ public class ClassicMainView {
         messages.getItems().setAll(result.messages());
         highlightEditor();
         updateTitle();
+    }
+
+    private void switchSecondaryToSession(YangEditorSession session) {
+        if (session == null || session == secondarySessionManager.currentSession()) {
+            return;
+        }
+        syncEditorSession(splitEditor, secondarySessionManager.currentSession());
+        secondarySessionManager.select(session);
+        activeEditor = splitEditor;
+        updatingEditor = true;
+        splitEditor.replaceText(session.text());
+        resetHighlightCache();
+        clearEditorUndoHistory(splitEditor);
+        updatingEditor = false;
+        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(splitEditor.getText(), session.file());
+        setDocument(result.document(), session.treeState());
+        messages.getItems().setAll(result.messages());
+        highlightEditor();
     }
 
     private void syncCurrentSession() {
@@ -388,29 +611,83 @@ public class ClassicMainView {
         updateTabTitle(currentSession);
     }
 
+    private void clearEditorUndoHistory() {
+        clearEditorUndoHistory(editor);
+        clearEditorUndoHistory(splitEditor);
+    }
+
+    private void clearEditorUndoHistory(CodeArea codeEditor) {
+        codeEditor.getUndoManager().forgetHistory();
+        codeEditor.getUndoManager().mark();
+    }
+
+    private void undoEditorChange() {
+        YangEditorSession currentSession = sessionForEditor(activeEditor);
+        if (currentSession == null) {
+            return;
+        }
+        currentSession.undo(activeEditor.getText()).ifPresent(this::applySessionHistoryText);
+    }
+
+    private void redoEditorChange() {
+        YangEditorSession currentSession = sessionForEditor(activeEditor);
+        if (currentSession == null) {
+            return;
+        }
+        currentSession.redo(activeEditor.getText()).ifPresent(this::applySessionHistoryText);
+    }
+
+    private void applySessionHistoryText(String text) {
+        applyingSessionHistory = true;
+        try {
+            activeEditor.replaceText(text);
+            clearEditorUndoHistory();
+        } finally {
+            applyingSessionHistory = false;
+        }
+    }
+
     private YangEditorSession sessionFor(Tab tab) {
         return (YangEditorSession) tab.getUserData();
     }
 
+    private YangEditorSession sessionForEditor(CodeArea codeEditor) {
+        return codeEditor == splitEditor ? secondarySessionManager.currentSession() : sessionManager.currentSession();
+    }
+
+    private Path fileForEditor(CodeArea codeEditor) {
+        YangEditorSession session = sessionForEditor(codeEditor);
+        return session == null ? null : session.file();
+    }
+
     private YangEditorSession findSession(Path file) {
-        return sessionManager.find(file);
+        return activeEditor == splitEditor && editorSplitVisible
+                ? secondarySessionManager.find(file)
+                : sessionManager.find(file);
     }
 
     private void updateTabTitle(YangEditorSession session) {
-        Tab tab = session == null ? null : sessionTabs.get(session);
-        if (tab == null) {
+        if (session == null) {
             return;
         }
-        tab.setText((session.isDirty() ? "* " : "") + session.displayName());
+        Tab tab = session == null ? null : sessionTabs.get(session);
+        String title = (session.isDirty() ? "* " : "") + session.displayName();
+        if (tab != null) {
+            tab.setText(title);
+        }
+        Tab secondaryTab = secondarySessionTabs.get(session);
+        if (secondaryTab != null) {
+            secondaryTab.setText(title);
+        }
     }
 
-    private TabPane propertiesPane() {
-        TabPane tabs = new TabPane();
-        tabs.setMinWidth(360);
-        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabs.getTabs().add(new Tab("Текущий узел", scrollablePropertiesPane(selectedNodePane())));
-        tabs.getTabs().add(new Tab("Новый узел", scrollablePropertiesPane(newNodePane())));
-        return tabs;
+    private void configurePropertiesPane() {
+        propertiesTabs.setMinWidth(360);
+        propertiesTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        propertiesTabs.getTabs().setAll(
+                new Tab("Текущий узел", scrollablePropertiesPane(selectedNodePane())),
+                new Tab("Новый узел", scrollablePropertiesPane(newNodePane()))
+        );
     }
 
     private ScrollPane scrollablePropertiesPane(VBox content) {
@@ -543,40 +820,9 @@ public class ClassicMainView {
     private void configureActions() {
         parseDelay.setOnFinished(event -> parseAndRefresh());
         autoSaveDelay.setOnFinished(event -> autoSaveDocument());
-        editor.addEventFilter(KeyEvent.KEY_PRESSED, this::handleEditorKeyPressed);
-        editor.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
-            if (event.getButton() == MouseButton.PRIMARY) {
-                selectingTextWithMouse = true;
-            }
-        });
-        editor.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
-            if (event.getButton() == MouseButton.PRIMARY) {
-                selectingTextWithMouse = false;
-                highlightEditor();
-            }
-        });
-        editor.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (updatingEditor) {
-                return;
-            }
-            dirty = true;
-            YangEditorSession currentSession = sessionManager.currentSession();
-            if (currentSession != null) {
-                currentSession.setText(newValue);
-                currentSession.setDirty(true);
-            }
-            highlightEditor();
-            updateTitle();
-            parseDelay.playFromStart();
-            scheduleAutoSave();
-            updateCompletionPopup();
-        });
-        editor.caretPositionProperty().addListener((observable, oldValue, newValue) -> highlightEditor());
-        editor.focusedProperty().addListener((observable, oldValue, focused) -> {
-            if (!focused) {
-                completionPopup.hide();
-            }
-        });
+        highlightDelay.setOnFinished(event -> highlightEditorNow());
+        configureEditorActions(editor);
+        configureEditorActions(splitEditor);
         nodeTree.getSelectionModel().selectedItemProperty().addListener((observable, oldItem, newItem) -> {
             if (newItem != null) {
                 showNode(newItem.getValue());
@@ -597,13 +843,107 @@ public class ClassicMainView {
         });
     }
 
-    private void handleEditorKeyPressed(KeyEvent event) {
+    private void configureEditorActions(CodeArea codeEditor) {
+        codeEditor.addEventFilter(KeyEvent.KEY_PRESSED, event -> handleEditorKeyPressed(codeEditor, event));
+        codeEditor.addEventFilter(KeyEvent.KEY_TYPED, event -> handleEditorKeyTyped(codeEditor, event));
+        codeEditor.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            activeEditor = codeEditor;
+            if (event.getButton() == MouseButton.PRIMARY) {
+                selectingTextWithMouse = true;
+            }
+        });
+        codeEditor.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+            activeEditor = codeEditor;
+            if (event.getButton() == MouseButton.PRIMARY) {
+                selectingTextWithMouse = false;
+                highlightEditor();
+            }
+        });
+        codeEditor.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (updatingEditor) {
+                return;
+            }
+            activeEditor = codeEditor;
+            YangEditorSession editedSession = sessionForEditor(codeEditor);
+            if (editedSession != null) {
+                if (!applyingSessionHistory) {
+                    editedSession.recordEdit(oldValue);
+                }
+                editedSession.setText(newValue);
+                editedSession.setDirty(true);
+                updateTabTitle(editedSession);
+            }
+            if (codeEditor == editor) {
+                dirty = true;
+            }
+            highlightEditor();
+            updateTitle();
+            parseDelay.playFromStart();
+            scheduleAutoSave();
+            updateCompletionPopup();
+        });
+        codeEditor.caretPositionProperty().addListener((observable, oldValue, newValue) -> {
+            activeEditor = codeEditor;
+            highlightEditor();
+        });
+        codeEditor.focusedProperty().addListener((observable, oldValue, focused) -> {
+            if (focused) {
+                activeEditor = codeEditor;
+            }
+            if (!focused) {
+                completionPopup.hide();
+            }
+        });
+    }
+
+    private void handleEditorKeyTyped(CodeArea codeEditor, KeyEvent event) {
+        activeEditor = codeEditor;
+        if (!"{".equals(event.getCharacter())) {
+            return;
+        }
+        event.consume();
+        insertBracePair(codeEditor);
+    }
+
+    private void syncEditorSession(CodeArea codeEditor, YangEditorSession session) {
+        if (session == null) {
+            return;
+        }
+        session.setText(codeEditor.getText());
+        if (codeEditor == editor) {
+            session.setFile(currentFile);
+            session.setDirty(dirty);
+        }
+        updateTabTitle(session);
+    }
+
+    private void handleEditorKeyPressed(CodeArea codeEditor, KeyEvent event) {
+        activeEditor = codeEditor;
         if (completionPopup.isShowing() && handleCompletionNavigation(event)) {
+            return;
+        }
+        if (event.isShortcutDown() && event.getCode() == KeyCode.Z) {
+            event.consume();
+            if (event.isShiftDown()) {
+                redoEditorChange();
+            } else {
+                undoEditorChange();
+            }
+            return;
+        }
+        if (event.isShortcutDown() && event.getCode() == KeyCode.Y) {
+            event.consume();
+            redoEditorChange();
             return;
         }
         if (event.isShortcutDown() && event.isShiftDown() && event.getCode() == KeyCode.L) {
             event.consume();
             formatDocument();
+            return;
+        }
+        if (event.isShortcutDown() && (event.getCode() == KeyCode.SLASH || event.getCode() == KeyCode.DIVIDE)) {
+            event.consume();
+            toggleLineComment();
             return;
         }
         if (event.isShortcutDown() && event.getCode() == KeyCode.SPACE) {
@@ -670,24 +1010,41 @@ public class ClassicMainView {
     }
 
     private void indentSelection() {
-        IndexRange selection = editor.getSelection();
+        CodeArea codeEditor = activeEditor;
+        IndexRange selection = codeEditor.getSelection();
         if (selection.getLength() == 0) {
-            editor.replaceSelection(EditorTextSupport.INDENT);
+            codeEditor.replaceSelection(EditorTextSupport.INDENT);
             return;
         }
-        String text = editor.getText();
+        String text = codeEditor.getText();
         int start = EditorTextSupport.lineStart(text, selection.getStart());
         int end = EditorTextSupport.lineEnd(text, selection.getEnd());
         String block = text.substring(start, end);
         String indented = EditorTextSupport.addIndent(block);
-        editor.replaceText(start, end, indented);
-        editor.selectRange(selection.getStart() + EditorTextSupport.INDENT.length(), selection.getEnd() + indented.length() - block.length());
+        codeEditor.replaceText(start, end, indented);
+        codeEditor.selectRange(selection.getStart() + EditorTextSupport.INDENT.length(), selection.getEnd() + indented.length() - block.length());
+    }
+
+    private void insertBracePair(CodeArea codeEditor) {
+        IndexRange selection = codeEditor.getSelection();
+        EditorTextSupport.BracePair bracePair = EditorTextSupport.bracePair(
+                codeEditor.getText(),
+                selection.getStart(),
+                selection.getEnd()
+        );
+        codeEditor.replaceText(bracePair.start(), bracePair.end(), bracePair.replacement());
+        if (selection.getLength() > 0) {
+            codeEditor.selectRange(bracePair.caretPosition(), bracePair.selectionEnd());
+            return;
+        }
+        codeEditor.moveTo(bracePair.caretPosition());
     }
 
     private void unindentSelection() {
-        IndexRange selection = editor.getSelection();
-        String text = editor.getText();
-        int originalCaret = editor.getCaretPosition();
+        CodeArea codeEditor = activeEditor;
+        IndexRange selection = codeEditor.getSelection();
+        String text = codeEditor.getText();
+        int originalCaret = codeEditor.getCaretPosition();
         int start = EditorTextSupport.lineStart(text, selection.getStart());
         int end = selection.getLength() == 0 ? EditorTextSupport.lineEnd(text, selection.getStart()) : EditorTextSupport.lineEnd(text, selection.getEnd());
         String block = text.substring(start, end);
@@ -695,11 +1052,11 @@ public class ClassicMainView {
         int removed = block.length() - unindented.length();
         int removedBeforeSelectionStart = removedIndentBefore(block, selection.getStart() - start);
         int removedBeforeSelectionEnd = removedIndentBefore(block, selection.getEnd() - start);
-        editor.replaceText(start, end, unindented);
+        codeEditor.replaceText(start, end, unindented);
         if (selection.getLength() == 0) {
-            editor.moveTo(Math.max(start, originalCaret - removed));
+            codeEditor.moveTo(Math.max(start, originalCaret - removed));
         } else {
-            editor.selectRange(
+            codeEditor.selectRange(
                     Math.max(start, selection.getStart() - removedBeforeSelectionStart),
                     Math.max(start, selection.getEnd() - removedBeforeSelectionEnd)
             );
@@ -713,40 +1070,60 @@ public class ClassicMainView {
     }
 
     private void insertIndentedNewLine() {
-        EditorTextSupport.IndentedNewLine newLine = EditorTextSupport.indentedNewLine(editor.getText(), editor.getCaretPosition());
-        editor.replaceSelection(newLine.insertion());
+        CodeArea codeEditor = activeEditor;
+        EditorTextSupport.IndentedNewLine newLine = EditorTextSupport.indentedNewLine(codeEditor.getText(), codeEditor.getCaretPosition());
+        codeEditor.replaceSelection(newLine.insertion());
         if (newLine.caretPosition() >= 0) {
-            editor.moveTo(newLine.caretPosition());
+            codeEditor.moveTo(newLine.caretPosition());
+        }
+    }
+
+    private void toggleLineComment() {
+        CodeArea codeEditor = activeEditor;
+        IndexRange selection = codeEditor.getSelection();
+        int caret = codeEditor.getCaretPosition();
+        EditorTextSupport.CommentToggle toggle = EditorTextSupport.toggleLineComment(
+                codeEditor.getText(),
+                selection.getStart(),
+                selection.getEnd()
+        );
+        codeEditor.replaceText(toggle.start(), toggle.end(), toggle.replacement());
+        if (selection.getLength() == 0) {
+            int delta = toggle.replacement().length() - (toggle.end() - toggle.start());
+            codeEditor.moveTo(Math.max(toggle.start(), Math.min(codeEditor.getLength(), caret + delta)));
+        } else {
+            codeEditor.selectRange(toggle.start(), toggle.start() + toggle.replacement().length());
         }
     }
 
     private void updateCompletionPopup() {
-        if (acceptingCompletion || updatingEditor || !editor.isFocused()) {
+        if (acceptingCompletion || updatingEditor || !activeEditor.isFocused()) {
             return;
         }
         showCompletionPopup(false);
     }
 
     private void showCompletionPopup(boolean force) {
-        List<String> suggestions = completionSupport.suggestions(editor.getText(), editor.getCaretPosition(), 12);
+        CodeArea codeEditor = activeEditor;
+        List<String> suggestions = completionSupport.suggestions(codeEditor.getText(), codeEditor.getCaretPosition(), 12);
         if (suggestions.isEmpty()) {
             completionPopup.hide();
             return;
         }
-        String prefix = completionSupport.prefix(editor.getText(), editor.getCaretPosition());
+        String prefix = completionSupport.prefix(codeEditor.getText(), codeEditor.getCaretPosition());
         if (!force && prefix.length() < 2) {
             completionPopup.hide();
             return;
         }
         completionList.getItems().setAll(suggestions);
         completionList.getSelectionModel().selectFirst();
-        Bounds caretBounds = editor.getCaretBounds().orElse(null);
+        Bounds caretBounds = codeEditor.getCaretBounds().orElse(null);
         if (caretBounds == null) {
-            completionPopup.show(editor, stage.getX() + 120, stage.getY() + 120);
+            completionPopup.show(codeEditor, stage.getX() + 120, stage.getY() + 120);
             return;
         }
         if (!completionPopup.isShowing()) {
-            completionPopup.show(editor, caretBounds.getMinX(), caretBounds.getMaxY() + 4);
+            completionPopup.show(codeEditor, caretBounds.getMinX(), caretBounds.getMaxY() + 4);
         }
     }
 
@@ -758,19 +1135,20 @@ public class ClassicMainView {
         }
         if (completion == null || completion.isBlank()) {
             completionPopup.hide();
-            editor.requestFocus();
+            activeEditor.requestFocus();
             return;
         }
-        int caret = editor.getCaretPosition();
-        int start = completionSupport.prefixStart(editor.getText(), caret);
+        CodeArea codeEditor = activeEditor;
+        int caret = codeEditor.getCaretPosition();
+        int start = completionSupport.prefixStart(codeEditor.getText(), caret);
         acceptingCompletion = true;
         try {
-            editor.replaceText(start, caret, completionSupport.insertionText(completion));
+            codeEditor.replaceText(start, caret, completionSupport.insertionText(completion));
         } finally {
             acceptingCompletion = false;
         }
         completionPopup.hide();
-        editor.requestFocus();
+        codeEditor.requestFocus();
     }
 
     private void zoomEditorIn() {
@@ -788,10 +1166,11 @@ public class ClassicMainView {
     private void setEditorFontSize(int size) {
         editorFontSize = Math.max(MIN_EDITOR_FONT_SIZE, Math.min(MAX_EDITOR_FONT_SIZE, size));
         editor.setStyle("-fx-font-size: " + editorFontSize + "px;");
+        splitEditor.setStyle("-fx-font-size: " + editorFontSize + "px;");
     }
 
     private void showFindDialog() {
-        String selectedText = editor.getSelectedText();
+        String selectedText = activeEditor.getSelectedText();
         if (selectedText != null && !selectedText.isBlank() && !selectedText.contains("\n") && !selectedText.contains("\r")) {
             searchText.setText(selectedText);
         }
@@ -809,7 +1188,7 @@ public class ClassicMainView {
     private void hideSearchBar() {
         searchBar.setVisible(false);
         searchBar.setManaged(false);
-        editor.requestFocus();
+        activeEditor.requestFocus();
     }
 
     private void findNextFromSearchBar() {
@@ -861,7 +1240,7 @@ public class ClassicMainView {
         replaceAll.setOnAction(event -> replaceAll(findText.getText(), replaceText.getText(), caseSensitive.isSelected()));
 
         dialog.setOnShown(event -> {
-            String selectedText = editor.getSelectedText();
+            String selectedText = activeEditor.getSelectedText();
             if (selectedText != null && !selectedText.isBlank() && !selectedText.contains("\n") && !selectedText.contains("\r")) {
                 findText.setText(selectedText);
             }
@@ -876,18 +1255,18 @@ public class ClassicMainView {
             return false;
         }
         Optional<FindReplaceController.TextRange> range = findReplaceController.findNext(
-                editor.getText(),
+                activeEditor.getText(),
                 cleanQuery,
                 caseSensitive,
-                editor.getCaretPosition(),
-                editor.getSelection().getEnd()
+                activeEditor.getCaretPosition(),
+                activeEditor.getSelection().getEnd()
         );
         if (range.isEmpty()) {
             messages.getItems().add(new UiMessage("Текст не найден: " + cleanQuery, "", 0));
             return false;
         }
-        editor.selectRange(range.get().start(), range.get().end());
-        editor.requestFollowCaret();
+        activeEditor.selectRange(range.get().start(), range.get().end());
+        activeEditor.requestFollowCaret();
         return true;
     }
 
@@ -897,22 +1276,22 @@ public class ClassicMainView {
             return false;
         }
         Optional<FindReplaceController.TextRange> range = findReplaceController.findPrevious(
-                editor.getText(),
+                activeEditor.getText(),
                 cleanQuery,
                 caseSensitive,
-                editor.getSelection().getStart()
+                activeEditor.getSelection().getStart()
         );
         if (range.isEmpty()) {
             messages.getItems().add(new UiMessage("Текст не найден: " + cleanQuery, "", 0));
             return false;
         }
-        editor.selectRange(range.get().start(), range.get().end());
-        editor.requestFollowCaret();
+        activeEditor.selectRange(range.get().start(), range.get().end());
+        activeEditor.requestFollowCaret();
         return true;
     }
 
     private void replaceCurrent(String query, String replacement, boolean caseSensitive) {
-        String selectedText = editor.getSelectedText();
+        String selectedText = activeEditor.getSelectedText();
         String cleanQuery = query == null ? "" : query;
         if (cleanQuery.isEmpty()) {
             return;
@@ -920,7 +1299,7 @@ public class ClassicMainView {
         if (!findReplaceController.matches(selectedText, cleanQuery, caseSensitive) && !findNext(cleanQuery, caseSensitive)) {
             return;
         }
-        editor.replaceSelection(replacement == null ? "" : replacement);
+        activeEditor.replaceSelection(replacement == null ? "" : replacement);
         findNext(cleanQuery, caseSensitive);
     }
 
@@ -929,11 +1308,15 @@ public class ClassicMainView {
         if (cleanQuery.isEmpty()) {
             return;
         }
-        editor.replaceText(findReplaceController.replaceAll(editor.getText(), cleanQuery, replacement, caseSensitive));
+        activeEditor.replaceText(findReplaceController.replaceAll(activeEditor.getText(), cleanQuery, replacement, caseSensitive));
     }
 
     private void createNewDocument() {
-        addSession(sessionManager.createUntitled(documentService.newModuleTemplate()));
+        if (activeEditor == splitEditor && editorSplitVisible) {
+            addSecondarySession(secondarySessionManager.createUntitled(documentService.newModuleTemplate()));
+        } else {
+            addSession(sessionManager.createUntitled(documentService.newModuleTemplate()));
+        }
     }
 
     private void openDocument() {
@@ -944,29 +1327,47 @@ public class ClassicMainView {
         }
         YangEditorSession existing = findSession(file);
         if (existing != null) {
-            selectSession(existing);
+            if (activeEditor == splitEditor && editorSplitVisible) {
+                selectSecondarySession(existing);
+            } else {
+                selectSession(existing);
+            }
             return;
         }
         try {
-            addSession(sessionManager.open(file, documentController.read(file)));
+            if (activeEditor == splitEditor && editorSplitVisible) {
+                addSecondarySession(secondarySessionManager.open(file, documentController.read(file)));
+            } else {
+                addSession(sessionManager.open(file, documentController.read(file)));
+            }
         } catch (IOException ex) {
             showError("Не удалось открыть файл", ex.getMessage());
         }
     }
 
     private void reloadDocument() {
-        if (currentFile == null) {
+        CodeArea codeEditor = activeEditor;
+        YangEditorSession session = sessionForEditor(codeEditor);
+        Path file = session == null ? null : session.file();
+        if (file == null) {
             showError("Файл не выбран", "Новая модель еще не связана с файлом.");
             return;
         }
         try {
+            String reloadedText = documentController.read(file);
             updatingEditor = true;
-            editor.replaceText(documentController.read(currentFile));
+            codeEditor.replaceText(reloadedText);
+            clearEditorUndoHistory(codeEditor);
             updatingEditor = false;
-            dirty = false;
+            if (codeEditor == editor) {
+                dirty = false;
+            }
+            session.setText(reloadedText);
+            session.setDirty(false);
+            session.clearEditHistory();
             parseAndRefresh();
             highlightEditor();
-            syncCurrentSession();
+            syncEditorSession(codeEditor, session);
             updateTitle();
         } catch (IOException ex) {
             updatingEditor = false;
@@ -975,14 +1376,23 @@ public class ClassicMainView {
     }
 
     private void saveDocument() {
-        if (currentFile == null) {
+        CodeArea codeEditor = activeEditor;
+        YangEditorSession session = sessionForEditor(codeEditor);
+        Path file = session == null ? null : session.file();
+        if (file == null) {
             saveDocumentAs();
             return;
         }
         try {
-            currentFile = documentController.save(currentFile, editor.getText());
-            dirty = false;
-            syncCurrentSession();
+            Path savedFile = documentController.save(file, codeEditor.getText());
+            session.setFile(savedFile);
+            session.setText(codeEditor.getText());
+            session.setDirty(false);
+            if (codeEditor == editor) {
+                currentFile = savedFile;
+                dirty = false;
+            }
+            updateTabTitle(session);
             updateTitle();
         } catch (IOException ex) {
             showError("Не удалось сохранить файл", ex.getMessage());
@@ -990,32 +1400,40 @@ public class ClassicMainView {
     }
 
     private void saveDocumentAs() {
+        YangEditorSession session = sessionForEditor(activeEditor);
         FileChooser chooser = yangChooser("Сохранить YANG модель");
-        chooser.setInitialFileName(documentController.defaultYangFileName(currentFile));
+        chooser.setInitialFileName(documentController.defaultYangFileName(session == null ? null : session.file()));
         Path file = selectedPath(chooser.showSaveDialog(stage));
         if (file == null) {
             return;
         }
-        currentFile = documentController.ensureYangExtension(file);
+        Path target = documentController.ensureYangExtension(file);
+        if (session != null) {
+            session.setFile(target);
+        }
+        if (activeEditor == editor) {
+            currentFile = target;
+        }
         saveDocument();
     }
 
     private void exportDocument() {
+        YangEditorSession session = sessionForEditor(activeEditor);
         FileChooser chooser = yangChooser("Экспортировать YANG модель");
-        chooser.setInitialFileName(documentController.defaultYangFileName(currentFile));
+        chooser.setInitialFileName(documentController.defaultYangFileName(session == null ? null : session.file()));
         Path file = selectedPath(chooser.showSaveDialog(stage));
         if (file == null) {
             return;
         }
         try {
-            documentController.exportYang(file, editor.getText());
+            documentController.exportYang(file, activeEditor.getText());
         } catch (IOException ex) {
             showError("Не удалось экспортировать файл", ex.getMessage());
         }
     }
 
     private void exportXmlSample() {
-        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(editor.getText(), currentFile);
+        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(activeEditor.getText(), fileForEditor(activeEditor));
         setDocument(result.document(), captureTreeState());
         if (!result.messages().isEmpty()) {
             messages.getItems().setAll(result.messages());
@@ -1023,13 +1441,13 @@ public class ClassicMainView {
             return;
         }
         FileChooser chooser = xmlChooser("Экспортировать XML-пример");
-        chooser.setInitialFileName(documentController.defaultXmlFileName(currentFile));
+        chooser.setInitialFileName(documentController.defaultXmlFileName(fileForEditor(activeEditor)));
         Path file = selectedPath(chooser.showSaveDialog(stage));
         if (file == null) {
             return;
         }
         try {
-            documentController.exportXml(file, result.document());
+            documentController.exportXml(file, result.document(), fileForEditor(activeEditor));
         } catch (IOException ex) {
             showError("Не удалось экспортировать XML", ex.getMessage());
         }
@@ -1037,13 +1455,14 @@ public class ClassicMainView {
 
     private void validateDocument() {
         YangTreeState treeState = captureTreeState();
-        YangDocumentAnalysisController.AnalysisResult result = analysisController.validate(editor.getText(), currentFile);
+        YangDocumentAnalysisController.AnalysisResult result = analysisController.validate(activeEditor.getText(), fileForEditor(activeEditor), pyangIetfMode);
         setDocument(result.document(), treeState);
         messages.getItems().setAll(result.messages());
     }
 
     private void formatDocument() {
-        YangParseResult parseResult = documentService.parse(editor.getText(), currentFile);
+        CodeArea codeEditor = activeEditor;
+        YangParseResult parseResult = documentService.parse(codeEditor.getText(), fileForEditor(codeEditor));
         if (parseResult.hasErrors()) {
             messages.getItems().setAll(parseResult.errors().stream()
                     .map(error -> new UiMessage(error, "", 0))
@@ -1051,14 +1470,21 @@ public class ClassicMainView {
             return;
         }
         YangTreeState treeState = captureTreeState();
-        int caret = editor.getCaretPosition();
+        int caret = codeEditor.getCaretPosition();
         String formatted = documentService.writeToText(parseResult.document());
         updatingEditor = true;
-        editor.replaceText(formatted);
-        editor.moveTo(Math.min(caret, formatted.length()));
+        codeEditor.replaceText(formatted);
+        codeEditor.moveTo(Math.min(caret, formatted.length()));
         updatingEditor = false;
-        dirty = true;
-        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(formatted, currentFile);
+        if (codeEditor == editor) {
+            dirty = true;
+        }
+        YangEditorSession session = sessionForEditor(codeEditor);
+        if (session != null) {
+            session.setText(formatted);
+            session.setDirty(true);
+        }
+        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(formatted, fileForEditor(codeEditor));
         setDocument(result.document(), treeState);
         messages.getItems().setAll(result.messages());
         syncCurrentSession();
@@ -1069,7 +1495,7 @@ public class ClassicMainView {
 
     private void parseAndRefresh() {
         YangTreeState treeState = captureTreeState();
-        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(editor.getText(), currentFile);
+        YangDocumentAnalysisController.AnalysisResult result = analysisController.parse(activeEditor.getText(), fileForEditor(activeEditor));
         setDocument(result.document(), treeState);
         messages.getItems().setAll(result.messages());
         syncCurrentSession();
@@ -1159,11 +1585,20 @@ public class ClassicMainView {
     }
 
     private void regenerateTextFromModel() {
+        CodeArea codeEditor = activeEditor;
         updatingEditor = true;
-        editor.replaceText(documentService.writeToText(currentDocument));
+        String generatedText = documentService.writeToText(currentDocument);
+        codeEditor.replaceText(generatedText);
         highlightEditor();
         updatingEditor = false;
-        dirty = true;
+        if (codeEditor == editor) {
+            dirty = true;
+        }
+        YangEditorSession session = sessionForEditor(codeEditor);
+        if (session != null) {
+            session.setText(generatedText);
+            session.setDirty(true);
+        }
         parseAndRefresh();
         updateTitle();
         scheduleAutoSave();
@@ -1288,19 +1723,28 @@ public class ClassicMainView {
     }
 
     private void scheduleAutoSave() {
-        if (currentFile != null) {
+        YangEditorSession session = sessionForEditor(activeEditor);
+        if (session != null && session.file() != null) {
             autoSaveDelay.playFromStart();
         }
     }
 
     private void autoSaveDocument() {
-        if (currentFile == null || !dirty) {
+        CodeArea codeEditor = activeEditor;
+        YangEditorSession session = sessionForEditor(codeEditor);
+        if (session == null || session.file() == null || !session.isDirty()) {
             return;
         }
         try {
-            currentFile = documentController.save(currentFile, editor.getText());
-            dirty = false;
-            syncCurrentSession();
+            Path savedFile = documentController.save(session.file(), codeEditor.getText());
+            session.setFile(savedFile);
+            session.setText(codeEditor.getText());
+            session.setDirty(false);
+            if (codeEditor == editor) {
+                currentFile = savedFile;
+                dirty = false;
+            }
+            updateTabTitle(session);
             updateTitle();
         } catch (IOException ex) {
             messages.getItems().add(new UiMessage("Автосохранение не выполнено: " + ex.getMessage(), "", 0));
@@ -1387,19 +1831,36 @@ public class ClassicMainView {
 
     private String typeIcon(YangNodeType type) {
         return switch (type) {
-            case MODULE, SUBMODULE -> "M";
-            case CONTAINER -> "C";
-            case LIST -> "L";
-            case LEAF -> "f";
-            case LEAF_LIST -> "[]";
-            case RPC, ACTION -> "λ";
-            case INPUT -> "in";
-            case OUTPUT -> "out";
-            case NOTIFICATION -> "!";
+            case MODULE -> "⬡";
+            case SUBMODULE -> "⬢";
+            case IMPORT -> "⇲";
+            case INCLUDE -> "⊂";
+            case REVISION -> "◷";
+            case EXTENSION -> "✦";
+            case FEATURE -> "◈";
+            case IDENTITY -> "◆";
             case TYPEDEF -> "T";
-            case IDENTITY -> "I";
-            case CHOICE, CASE -> "?";
-            default -> "?";
+            case CONTAINER -> "▣";
+            case LIST -> "☷";
+            case LEAF -> "•";
+            case LEAF_LIST -> "⋮";
+            case CHOICE -> "◇";
+            case CASE -> "◌";
+            case GROUPING -> "▦";
+            case USES -> "↪";
+            case AUGMENT -> "＋";
+            case RPC -> "λ";
+            case ACTION -> "▶";
+            case INPUT -> "→";
+            case OUTPUT -> "←";
+            case NOTIFICATION -> "!";
+            case DEVIATION -> "△";
+            case DEVIATE -> "▵";
+            case ANYDATA -> "{ }";
+            case ANYXML -> "<>";
+            case ENUM -> "≡";
+            case BIT -> "◻";
+            case UNKNOWN -> "?";
         };
     }
 
@@ -1462,24 +1923,70 @@ public class ClassicMainView {
     }
 
     private void updateTitle() {
-        YangEditorSession currentSession = sessionManager.currentSession();
-        String fileName = currentSession == null
+        YangEditorSession activeSession = sessionForEditor(activeEditor);
+        String fileName = activeSession == null
                 ? "Новая модель"
-                : currentSession.displayName();
-        if (currentSession != null) {
-            currentSession.setFile(currentFile);
-            currentSession.setDirty(dirty);
-            updateTabTitle(currentSession);
+                : activeSession.displayName();
+        if (activeSession != null) {
+            if (activeEditor == editor) {
+                activeSession.setFile(currentFile);
+                activeSession.setDirty(dirty);
+            }
+            updateTabTitle(activeSession);
         }
-        stage.setTitle((dirty ? "* " : "") + fileName + " - YANG Model Designer");
+        boolean activeDirty = activeSession != null && activeSession.isDirty();
+        stage.setTitle((activeDirty ? "* " : "") + fileName + " - YANG Model Designer");
     }
 
     private void highlightEditor() {
         if (selectingTextWithMouse) {
             return;
         }
-        int caretPosition = editor.getSelection().getLength() == 0 ? editor.getCaretPosition() : -1;
-        editor.setStyleSpans(0, syntaxHighlighter.compute(editor.getText(), caretPosition));
+        highlightDelay.playFromStart();
+    }
+
+    private void highlightEditorNow() {
+        if (selectingTextWithMouse) {
+            return;
+        }
+        highlightCodeEditor(editor);
+        if (editorSplitVisible) {
+            highlightCodeEditor(splitEditor);
+        }
+    }
+
+    private void highlightCodeEditor(CodeArea codeEditor) {
+        int caretPosition = codeEditor.getSelection().getLength() == 0 ? codeEditor.getCaretPosition() : -1;
+        String text = codeEditor.getText();
+        if (!highlightChanged(codeEditor, text, caretPosition)) {
+            return;
+        }
+        codeEditor.setStyleSpans(0, syntaxHighlighter.compute(text, caretPosition));
+        rememberHighlight(codeEditor, text, caretPosition);
+    }
+
+    private boolean highlightChanged(CodeArea codeEditor, String text, int caretPosition) {
+        if (codeEditor == editor) {
+            return caretPosition != lastPrimaryHighlightCaret || !text.equals(lastPrimaryHighlightText);
+        }
+        return caretPosition != lastSplitHighlightCaret || !text.equals(lastSplitHighlightText);
+    }
+
+    private void rememberHighlight(CodeArea codeEditor, String text, int caretPosition) {
+        if (codeEditor == editor) {
+            lastPrimaryHighlightText = text;
+            lastPrimaryHighlightCaret = caretPosition;
+        } else {
+            lastSplitHighlightText = text;
+            lastSplitHighlightCaret = caretPosition;
+        }
+    }
+
+    private void resetHighlightCache() {
+        lastPrimaryHighlightText = null;
+        lastSplitHighlightText = null;
+        lastPrimaryHighlightCaret = Integer.MIN_VALUE;
+        lastSplitHighlightCaret = Integer.MIN_VALUE;
     }
 
     private void selectNodeByPath(String path) {
@@ -1515,19 +2022,51 @@ public class ClassicMainView {
     }
 
     private void navigateToNodeDefinition(YangNode node) {
-        if (node.line() <= 0 || editor.getLength() == 0) {
+        if (node.line() <= 0 || activeEditor.getLength() == 0) {
             return;
         }
         navigateToLine(node.line());
     }
 
     private void navigateToLine(int line) {
-        if (line <= 0 || editor.getLength() == 0) {
+        if (line <= 0 || activeEditor.getLength() == 0) {
             return;
         }
-        int position = treeController.offsetForLine(editor.getText(), line);
-        editor.moveTo(position);
-        editor.showParagraphAtCenter(Math.max(0, line - 1));
+        int position = treeController.offsetForLine(activeEditor.getText(), line);
+        activeEditor.moveTo(position);
+        activeEditor.showParagraphAtCenter(Math.max(0, line - 1));
+    }
+
+    private static final class MessageCell extends ListCell<UiMessage> {
+        @Override
+        protected void updateItem(UiMessage message, boolean empty) {
+            super.updateItem(message, empty);
+            if (empty || message == null) {
+                setText(null);
+                setGraphic(null);
+                return;
+            }
+            setText(null);
+            setGraphic(messageGraphic(message.text()));
+        }
+
+        private TextFlow messageGraphic(String message) {
+            if (message.startsWith("ERROR:")) {
+                return severityGraphic("ERROR", message.substring("ERROR".length()), Color.web("#ff5f57"));
+            }
+            if (message.startsWith("WARNING:")) {
+                return severityGraphic("WARNING", message.substring("WARNING".length()), Color.web("#f4c430"));
+            }
+            return new TextFlow(new Text(message));
+        }
+
+        private TextFlow severityGraphic(String severity, String rest, Color color) {
+            Text severityText = new Text(severity);
+            severityText.setFill(color);
+            severityText.setStyle("-fx-font-weight: bold;");
+            Text restText = new Text(rest);
+            return new TextFlow(severityText, restText);
+        }
     }
 
     private void showError(String header, String content) {

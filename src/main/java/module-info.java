@@ -3,6 +3,7 @@ module com.yangdesigner.yangmodeldesigner {
     requires java.prefs;
     requires org.fxmisc.richtext;
     requires org.fxmisc.flowless;
+    requires org.fxmisc.undo;
 
     exports com.yangdesigner.yangmodeldesigner;
     exports com.yangdesigner.yangmodeldesigner.app;

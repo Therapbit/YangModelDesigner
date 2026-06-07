@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 class YangEditorSessionManagerTest {
@@ -44,5 +45,21 @@ class YangEditorSessionManagerTest {
         assertEquals("module saved {}", session.text());
         assertEquals(true, session.isDirty());
         assertSame(treeState, session.treeState());
+    }
+
+    @Test
+    void keepsUndoHistoryPerSession() {
+        YangEditorSession first = new YangEditorSession("first", null, "module first {}", false);
+        YangEditorSession second = new YangEditorSession("second", null, "module second {}", false);
+
+        first.recordEdit("module first {}");
+        first.setText("module first { leaf name { type string; } }");
+        second.recordEdit("module second {}");
+        second.setText("module second { leaf enabled { type boolean; } }");
+
+        assertEquals("module first {}", first.undo(first.text()).orElseThrow());
+        assertEquals("module second {}", second.undo(second.text()).orElseThrow());
+        assertEquals("module first { leaf name { type string; } }", first.redo("module first {}").orElseThrow());
+        assertTrue(second.redo("module second {}").isPresent());
     }
 }
