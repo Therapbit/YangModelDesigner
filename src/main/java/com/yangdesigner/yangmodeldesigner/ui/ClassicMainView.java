@@ -34,6 +34,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.Label;
@@ -58,8 +59,11 @@ import javafx.scene.control.TreeView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -160,6 +164,8 @@ public class ClassicMainView {
     private boolean selectingTextWithMouse;
     private boolean switchingSecondarySessions;
     private boolean editorSplitVisible;
+    private YangEditorSession draggedSession;
+    private boolean draggedFromSecondary;
     private boolean treePaneVisible = true;
     private boolean propertiesPaneVisible = true;
     private boolean pyangIetfMode;
@@ -228,6 +234,8 @@ public class ClassicMainView {
         configureSearchBar();
         configureFileTabs();
         configureSecondaryFileTabs();
+        configureTabDropTarget(primaryEditorPane, false);
+        configureTabDropTarget(splitEditorPane, true);
         configureCompletionPopup();
         primaryEditorPane.setTop(fileTabs);
         primaryEditorPane.setCenter(primaryEditorScroll);
@@ -249,6 +257,16 @@ public class ClassicMainView {
                 }
                 setText(treeCellText(node));
                 setGraphic(treeCellGraphic(node));
+            }
+
+            {
+                setOnMouseClicked(event -> {
+                    if (event.getButton() == MouseButton.MIDDLE && getTreeItem() == nodeTree.getRoot()) {
+                        treeController.expandAll(nodeTree.getRoot());
+                        syncCurrentSession();
+                        event.consume();
+                    }
+                });
             }
         });
 
@@ -476,6 +494,23 @@ public class ClassicMainView {
         });
     }
 
+    private void configureTabDropTarget(Node target, boolean secondary) {
+        target.setOnDragOver(event -> {
+            if (editorSplitVisible && draggedSession != null && draggedFromSecondary != secondary) {
+                event.acceptTransferModes(TransferMode.MOVE);
+                event.consume();
+            }
+        });
+        target.setOnDragDropped(event -> {
+            boolean moved = editorSplitVisible
+                    && draggedSession != null
+                    && draggedFromSecondary != secondary
+                    && moveSessionBetweenEditors(draggedSession, draggedFromSecondary, secondary);
+            event.setDropCompleted(moved);
+            event.consume();
+        });
+    }
+
     private void configureCompletionPopup() {
         completionList.setPrefWidth(260);
         completionList.setPrefHeight(180);
@@ -494,43 +529,141 @@ public class ClassicMainView {
     }
 
     private void addSession(YangEditorSession session) {
-        Tab tab = new Tab(session.displayName());
-        tab.setUserData(session);
-        sessionTabs.put(session, tab);
         sessionManager.add(session);
-        tab.setOnCloseRequest(event -> {
-            if (sessionManager.size() == 1) {
-                event.consume();
-            } else if (session == sessionManager.currentSession()) {
-                syncCurrentSession();
-            }
-        });
-        tab.setOnClosed(event -> {
-            sessionManager.remove(session);
-            sessionTabs.remove(session);
-        });
+        Tab tab = createSessionTab(session, false);
+        sessionTabs.put(session, tab);
         fileTabs.getTabs().add(tab);
         selectSession(session);
     }
 
     private void addSecondarySession(YangEditorSession session) {
-        Tab tab = new Tab(session.displayName());
-        tab.setUserData(session);
-        secondarySessionTabs.put(session, tab);
         secondarySessionManager.add(session);
+        Tab tab = createSessionTab(session, true);
+        secondarySessionTabs.put(session, tab);
+        secondaryFileTabs.getTabs().add(tab);
+        selectSecondarySession(session);
+    }
+
+    private Tab createSessionTab(YangEditorSession session, boolean secondary) {
+        Tab tab = new Tab();
+        Label label = new Label();
+        tab.setGraphic(label);
+        tab.setUserData(session);
+        setTabTitle(tab, session);
+        ContextMenu pathMenu = new ContextMenu();
+        MenuItem pathItem = new MenuItem();
+        pathItem.setDisable(true);
+        pathMenu.getItems().add(pathItem);
+        pathMenu.setOnShowing(event -> pathItem.setText(session.displayPath()));
+        label.setContextMenu(pathMenu);
+        label.setOnDragDetected(event -> {
+            draggedSession = session;
+            draggedFromSecondary = secondary;
+            Dragboard dragboard = label.startDragAndDrop(TransferMode.MOVE);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(session.displayName());
+            dragboard.setContent(content);
+            event.consume();
+        });
+        label.setOnDragDone(event -> {
+            draggedSession = null;
+            event.consume();
+        });
+        YangEditorSessionManager manager = secondary ? secondarySessionManager : sessionManager;
+        Map<YangEditorSession, Tab> tabs = secondary ? secondarySessionTabs : sessionTabs;
         tab.setOnCloseRequest(event -> {
-            if (secondarySessionManager.size() == 1) {
+            if (manager.size() == 1) {
                 event.consume();
-            } else if (session == secondarySessionManager.currentSession()) {
-                syncEditorSession(splitEditor, session);
+            } else if (session == manager.currentSession()) {
+                if (secondary) {
+                    syncEditorSession(splitEditor, session);
+                } else {
+                    syncCurrentSession();
+                }
             }
         });
         tab.setOnClosed(event -> {
-            secondarySessionManager.remove(session);
-            secondarySessionTabs.remove(session);
+            manager.remove(session);
+            tabs.remove(session);
         });
-        secondaryFileTabs.getTabs().add(tab);
-        selectSecondarySession(session);
+        return tab;
+    }
+
+    private boolean moveSessionBetweenEditors(YangEditorSession session, boolean sourceSecondary, boolean targetSecondary) {
+        YangEditorSessionManager sourceManager = sourceSecondary ? secondarySessionManager : sessionManager;
+        YangEditorSessionManager targetManager = targetSecondary ? secondarySessionManager : sessionManager;
+        Map<YangEditorSession, Tab> sourceTabs = sourceSecondary ? secondarySessionTabs : sessionTabs;
+        Map<YangEditorSession, Tab> targetTabs = targetSecondary ? secondarySessionTabs : sessionTabs;
+        TabPane sourcePane = sourceSecondary ? secondaryFileTabs : fileTabs;
+        TabPane targetPane = targetSecondary ? secondaryFileTabs : fileTabs;
+
+        syncSessionBeforeMove(session, sourceSecondary);
+        Tab sourceTab = sourceTabs.get(session);
+        if (sourceTab == null || !sourceManager.moveTo(session, targetManager)) {
+            return false;
+        }
+
+        setSessionSwitching(sourceSecondary, true);
+        sourcePane.getTabs().remove(sourceTab);
+        sourceTabs.remove(session);
+        setSessionSwitching(sourceSecondary, false);
+
+        Tab targetTab = createSessionTab(session, targetSecondary);
+        targetTabs.put(session, targetTab);
+        targetPane.getTabs().add(targetTab);
+        selectRemainingSession(sourceSecondary);
+        if (targetSecondary) {
+            selectSecondarySession(session);
+        } else {
+            selectSession(session);
+        }
+        return true;
+    }
+
+    private void syncSessionBeforeMove(YangEditorSession session, boolean secondary) {
+        if (secondary) {
+            if (session == secondarySessionManager.currentSession()) {
+                syncEditorSession(splitEditor, session);
+                session.setTreeState(captureTreeState());
+            }
+        } else if (session == sessionManager.currentSession()) {
+            syncCurrentSession();
+        }
+    }
+
+    private void selectRemainingSession(boolean secondary) {
+        YangEditorSessionManager manager = secondary ? secondarySessionManager : sessionManager;
+        if (manager.size() == 0) {
+            clearEditorAfterMove(secondary ? splitEditor : editor, secondary);
+            return;
+        }
+        YangEditorSession remaining = manager.currentSession() == null
+                ? manager.sessions().get(0)
+                : manager.currentSession();
+        if (secondary) {
+            selectSecondarySession(remaining);
+        } else {
+            selectSession(remaining);
+        }
+    }
+
+    private void clearEditorAfterMove(CodeArea codeEditor, boolean secondary) {
+        updatingEditor = true;
+        codeEditor.clear();
+        clearEditorUndoHistory(codeEditor);
+        updatingEditor = false;
+        if (!secondary) {
+            currentFile = null;
+            dirty = false;
+        }
+    }
+
+    private void setSessionSwitching(boolean secondary, boolean switching) {
+        if (secondary) {
+            switchingSecondarySessions = switching;
+        } else {
+            switchingSessions = switching;
+        }
     }
 
     private void selectSession(YangEditorSession session) {
@@ -671,13 +804,21 @@ public class ClassicMainView {
             return;
         }
         Tab tab = session == null ? null : sessionTabs.get(session);
-        String title = (session.isDirty() ? "* " : "") + session.displayName();
         if (tab != null) {
-            tab.setText(title);
+            setTabTitle(tab, session);
         }
         Tab secondaryTab = secondarySessionTabs.get(session);
         if (secondaryTab != null) {
-            secondaryTab.setText(title);
+            setTabTitle(secondaryTab, session);
+        }
+    }
+
+    private void setTabTitle(Tab tab, YangEditorSession session) {
+        String title = (session.isDirty() ? "* " : "") + session.displayName();
+        if (tab.getGraphic() instanceof Label label) {
+            label.setText(title);
+        } else {
+            tab.setText(title);
         }
     }
 

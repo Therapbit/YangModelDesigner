@@ -55,6 +55,22 @@ class YangTreeControllerTest {
     }
 
     @Test
+    void expandsAllTreeItems() {
+        YangNode root = new YangNode(YangNodeType.MODULE, "example");
+        YangNode container = new YangNode(YangNodeType.CONTAINER, "system");
+        YangNode leaf = new YangNode(YangNodeType.LEAF, "enabled");
+        root.addChild(container);
+        container.addChild(leaf);
+        TreeItem<YangNode> rootItem = controller.toTreeItem(root);
+        TreeItem<YangNode> containerItem = rootItem.getChildren().getFirst();
+
+        controller.expandAll(rootItem);
+
+        assertTrue(rootItem.isExpanded());
+        assertTrue(containerItem.isExpanded());
+    }
+
+    @Test
     void computesOffsetForOneBasedLineNumber() {
         assertEquals(0, controller.offsetForLine("a\nbb\nccc", 1));
         assertEquals(2, controller.offsetForLine("a\nbb\nccc", 2));

@@ -58,6 +58,16 @@ public final class YangTreeController {
         }
     }
 
+    public void expandAll(TreeItem<YangNode> item) {
+        if (item == null) {
+            return;
+        }
+        item.setExpanded(true);
+        for (TreeItem<YangNode> child : item.getChildren()) {
+            expandAll(child);
+        }
+    }
+
     public boolean isReadOnly(YangNode node) {
         YangNode cursor = node;
         while (cursor != null) {

@@ -48,6 +48,15 @@ public final class YangEditorSessionManager {
         }
     }
 
+    public boolean moveTo(YangEditorSession session, YangEditorSessionManager target) {
+        if (session == null || target == null || target == this || !sessions.contains(session)) {
+            return false;
+        }
+        remove(session);
+        target.add(session);
+        return true;
+    }
+
     public void select(YangEditorSession session) {
         currentSession = session;
     }

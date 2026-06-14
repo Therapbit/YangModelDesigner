@@ -91,6 +91,12 @@ public final class YangEditorSession {
         return file == null ? untitledName : file.getFileName().toString();
     }
 
+    public String displayPath() {
+        return file == null
+                ? "Файл еще не сохранен"
+                : file.toAbsolutePath().normalize().toString();
+    }
+
     private void trimHistory(Deque<String> history) {
         while (history.size() > MAX_EDIT_HISTORY) {
             history.removeLast();
